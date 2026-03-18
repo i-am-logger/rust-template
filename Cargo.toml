@@ -5,6 +5,9 @@ edition = "2024"
 authors = ["i-am-logger"]
 description = "A Rust CLI project"
 license = "CC-BY-NC-SA-4.0"
+repository = "https://github.com/i-am-logger/my-project"
+keywords = []
+categories = ["command-line-utilities"]
 
 [dependencies]
 # CLI
