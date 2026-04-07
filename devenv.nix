@@ -130,5 +130,7 @@ in
   };
 
   # https://devenv.sh/tests/
-  enterTest = lib.mkForce "devenv tasks run test:fmt test:clippy test:check test:unit";
+  # SKIP prevents git-hooks from running during devenv test (CI).
+  # The tasks already run the same fmt/clippy checks without auto-fixing files.
+  enterTest = lib.mkForce "SKIP=clippy,rustfmt devenv tasks run test:fmt test:clippy test:check test:unit";
 }
