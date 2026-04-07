@@ -27,7 +27,35 @@ in
   # Development scripts
   scripts.dev-test.exec = ''
     echo "Running tests..."
-    cargo test --all-features
+    RUSTFLAGS="-D warnings" cargo test --all-features
+  '';
+
+  scripts.dev-fmt.exec = ''
+    echo "Checking formatting..."
+    cargo fmt --check
+  '';
+
+  scripts.dev-lint.exec = ''
+    echo "Running clippy..."
+    cargo clippy --quiet -- -D warnings
+  '';
+
+  scripts.dev-check.exec = ''
+    echo "Checking compilation..."
+    cargo check --quiet
+  '';
+
+  scripts.dev-ci.exec = ''
+    echo "Running full CI pipeline locally..."
+    echo "=== fmt ==="
+    cargo fmt --check || { echo "FAILED: fmt"; exit 1; }
+    echo "=== clippy ==="
+    cargo clippy --quiet -- -D warnings || { echo "FAILED: clippy"; exit 1; }
+    echo "=== check ==="
+    cargo check --quiet || { echo "FAILED: check"; exit 1; }
+    echo "=== test ==="
+    RUSTFLAGS="-D warnings" cargo test --quiet || { echo "FAILED: test"; exit 1; }
+    echo "=== ALL PASSED ==="
   '';
 
   scripts.dev-run.exec = ''
@@ -57,7 +85,11 @@ in
     } | ${pkgs.boxes}/bin/boxes -d stone -a l -i none
     echo
     echo "Available scripts:"
+    echo "  dev-ci        - Run full CI pipeline (fmt + clippy + check + test)"
     echo "  dev-test      - Run tests"
+    echo "  dev-fmt       - Check formatting"
+    echo "  dev-lint      - Run clippy"
+    echo "  dev-check     - Check compilation"
     echo "  dev-run       - Run the application"
     echo "  dev-build     - Build the application"
     echo ""
@@ -93,7 +125,7 @@ in
     };
 
     "test:unit" = {
-      exec = "cargo test --quiet";
+      exec = "RUSTFLAGS='-D warnings' cargo test --quiet";
     };
   };
 
