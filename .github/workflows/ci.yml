@@ -8,21 +8,47 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PR / feature branches: a superseded push is pure waste — cancel it.
+  # master: NEVER. It is the only ref that can publish to crates.io, and
+  # `release-plz release` publishes AND tags AND creates a GitHub release. A
+  # cancel landing inside that publish→tag seam leaves a crate published to an
+  # IMMUTABLE registry with no tag, no release and no changelog entry. Master
+  # runs queue instead (GitHub keeps at most one pending run per group), so
+  # this cannot produce two concurrent publishes.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 permissions:
   contents: write
   pull-requests: write
   actions: write
 
+# ── CI architecture ──────────────────────────────────────────────────────────
+# `devenv-checks` runs `devenv test`, which runs the `tasks."test:*"` set from
+# devenv.nix. That is the SAME command a developer runs locally, so the local
+# run and this workflow cannot diverge: the workflow is a thin wrapper over a
+# nix-defined check suite, not a second copy of it. Add a check by adding a
+# task, never by adding a step here.
+#
+# Release is two release-plz jobs, and their ORDER matters:
+#   release-plz-release  publishes any merged Release PR, tags, releases
+#   release-plz-pr       opens/updates the NEXT Release PR
+# Run in parallel, the fast PR job finishes before the slow release job has
+# created the new tag, so it diffs from the PREVIOUS tag, re-lists the
+# just-released commits, and opens a redundant `chore: release` PR every cycle —
+# a self-feeding loop. Sequencing breaks it: by the time release-pr runs, the
+# just-released version is tagged and no unreleased commits remain to propose.
 jobs:
   devenv-checks:
     name: Lint/UT
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Skip on release-plz's own Release PR and on the release commit it merges:
+    # both touch only Cargo.toml versions and CHANGELOG.md, and the checks
+    # already passed on the underlying commits.
     if: |
       !(
-        (github.event_name == 'pull_request' && (startsWith(github.event.pull_request.title, 'release:') || startsWith(github.event.pull_request.title, 'chore: release'))) ||
-        (github.event_name == 'push' && (contains(github.event.head_commit.message, 'release-please--branches--master') || startsWith(github.event.head_commit.message, 'chore: release')))
+        (github.event_name == 'pull_request' && startsWith(github.event.pull_request.title, 'chore: release')) ||
+        (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore: release'))
       )
     steps:
       - name: Checkout code
@@ -57,6 +83,7 @@ jobs:
     name: Coverage
     runs-on: ubuntu-latest
     needs: [devenv-checks]
+    timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
@@ -74,36 +101,77 @@ jobs:
           files: lcov.info
           fail_ci_if_error: false
 
-  release-please:
+  # Publishes to crates.io, tags, and creates the GitHub release when a Release
+  # PR has been merged. `release_always = false` in release-plz.toml means this
+  # is a no-op on an ordinary feature merge — merging the Release PR is the act
+  # that authorises a publish.
+  release-plz-release:
     name: Release
     runs-on: ubuntu-latest
+    needs: [devenv-checks]
+    timeout-minutes: 30
+    # `!cancelled()`, not `always()`: this job publishes to an IMMUTABLE
+    # registry, so running it from a cancelled workflow is the one thing that
+    # cannot be undone. `skipped` is accepted because devenv-checks skips on
+    # the release commit itself (see its `if`).
     if: |
+      !cancelled() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/master' &&
       (needs.devenv-checks.result == 'success' || needs.devenv-checks.result == 'skipped')
-    needs: [devenv-checks]
+    permissions:
+      contents: write
+      pull-requests: read
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
+      releases_created: ${{ steps.release-plz.outputs.releases_created }}
+      releases: ${{ steps.release-plz.outputs.releases }}
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
+      - uses: actions/checkout@v4
         with:
-          config-file: .release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-  publish:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    needs: [release-please]
-    if: needs.release-please.outputs.release_created == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to crates.io
-        run: cargo publish
+          # release-plz diffs against the previous tag, so it needs full history.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        id: release-plz
+        with:
+          command: release
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # Opens/updates the Release PR that bumps the version and writes CHANGELOG.md.
+  # MUST run after release-plz-release — see the anti-loop note at the top.
+  release-plz-pr:
+    name: Release-PR
+    runs-on: ubuntu-latest
+    needs: [devenv-checks, release-plz-release]
+    timeout-minutes: 20
+    # Requires Release to have SUCCEEDED: a failed publish leaves no new tag,
+    # which would re-trigger the same redundant-PR loop. On an ordinary feature
+    # merge Release succeeds as a no-op, so this never blocks the first PR.
+    if: |
+      !cancelled() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/master' &&
+      (needs.devenv-checks.result == 'success' || needs.devenv-checks.result == 'skipped') &&
+      needs.release-plz-release.result == 'success'
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-pr-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        id: release-plz
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
