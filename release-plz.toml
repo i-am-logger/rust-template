@@ -1,0 +1,58 @@
+# release-plz configuration.
+#
+# Replaces release-please. release-please tracked the released version in a
+# local file (`.release-please-manifest.json`), which silently drifts from
+# crates.io the moment a publish step fails: the repo ends up tagged at a
+# version the registry never received, and every subsequent bump is computed
+# from a baseline that doesn't exist. release-plz reads the baseline from
+# crates.io directly, so that class of drift is structurally impossible.
+#
+# https://release-plz.dev/docs/config
+
+[workspace]
+# Run cargo-semver-checks before each release: a "patch" bump on a breaking
+# API change is rejected and the version auto-escalated to satisfy semver.
+semver_check = true
+
+# Single-crate template, so a plain `vX.Y.Z` tag. A workspace instantiated from
+# this template should switch to "{{ package }}-v{{ version }}" so each member
+# gets its own tag.
+git_tag_name = "v{{ version }}"
+
+# Create a GitHub release for every tag — keeps the release notes and the
+# changelog the same artefact.
+git_release_enable = true
+
+# Publish ONLY when a release-plz-generated Release PR is merged, never when a
+# plain feature/fix commit lands. release-plz's default is the opposite. The
+# two-step gate keeps publishing under explicit human review: `release-plz-pr`
+# opens a PR that bumps the version and writes the CHANGELOG entry, and merging
+# that PR is the act that authorises the publish to an immutable registry.
+release_always = false
+
+# Label every release PR so it is filterable in the GitHub UI
+# (`is:pr label:release`) and so "needs human review" queries can exclude
+# them with `-label:automated`.
+pr_labels = ["release", "automated"]
+
+[changelog]
+header = """# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+
+# Skip release-plz's own release commits when generating changelogs. A
+# `chore: release` commit is not a real change, but left unfiltered release-plz
+# attributes it to the package on the next run, back-fills a changelog entry,
+# and opens a redundant release PR — which produces another release commit, and
+# so on. Filtering breaks the loop.
+#
+# The optional-scope group catches both forms release-plz emits: the unscoped
+# aggregate `chore: release` and the per-package
+# `chore(<package>): release v<x>`.
+commit_parsers = [
+  { message = "^chore(\\(.+\\))?: release", skip = true },
+]

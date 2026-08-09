@@ -32,7 +32,7 @@ in
 
   scripts.dev-fmt.exec = ''
     echo "Checking formatting..."
-    cargo fmt --check
+    treefmt --fail-on-change
   '';
 
   scripts.dev-lint.exec = ''
@@ -48,7 +48,7 @@ in
   scripts.dev-ci.exec = ''
     echo "Running full CI pipeline locally..."
     echo "=== fmt ==="
-    cargo fmt --check || { echo "FAILED: fmt"; exit 1; }
+    treefmt --fail-on-change || { echo "FAILED: fmt"; exit 1; }
     echo "=== clippy ==="
     cargo clippy --quiet -- -D warnings || { echo "FAILED: clippy"; exit 1; }
     echo "=== check ==="
@@ -85,7 +85,7 @@ in
     } | ${pkgs.boxes}/bin/boxes -d stone -a l -i none
     echo
     echo "Available scripts:"
-    echo "  dev-ci        - Run full CI pipeline (fmt + clippy + check + test)"
+    echo "  dev-ci        - Run full CI pipeline (treefmt + clippy + check + test)"
     echo "  dev-test      - Run tests"
     echo "  dev-fmt       - Check formatting"
     echo "  dev-lint      - Run clippy"
@@ -94,6 +94,43 @@ in
     echo "  dev-build     - Build the application"
     echo ""
   '';
+
+  # https://devenv.sh/integrations/treefmt/
+  #
+  # One formatter for the whole tree, not just Rust — a Nix or shell file that
+  # CI reformats is as much a diff-noise source as an unformatted .rs. `treefmt`
+  # is the single entry point for `dev-fmt`, `tasks."test:fmt"`, and the
+  # pre-commit hook, so all three can only ever agree.
+  treefmt = {
+    enable = true;
+    config = {
+      settings.global.excludes = [
+        ".devenv.flake.nix"
+        ".devenv/"
+      ];
+
+      programs = {
+        # Nix
+        nixpkgs-fmt.enable = true;
+        deadnix = {
+          enable = true;
+          no-underscore = true;
+        };
+        statix.enable = true;
+
+        # Rust — use the devenv toolchain so the formatter understands the
+        # same edition the compiler does.
+        rustfmt = {
+          enable = true;
+          package = config.languages.rust.toolchainPackage;
+        };
+
+        # Shell
+        shellcheck.enable = true;
+        shfmt.enable = true;
+      };
+    };
+  };
 
   # https://devenv.sh/git-hooks/
   git-hooks.settings.rust.cargoManifestPath = "./Cargo.toml";
@@ -106,14 +143,20 @@ in
   };
 
   git-hooks.hooks = {
-    rustfmt.enable = true;
+    # treefmt rather than rustfmt: same formatter as dev-fmt and test:fmt.
+    treefmt.enable = true;
     clippy.enable = true;
   };
 
   # https://devenv.sh/tasks/
+  #
+  # These tasks ARE the check suite. `enterTest` runs them, so `devenv test`
+  # locally and `devenv test` in .github/workflows/ci.yml execute the same
+  # thing by construction — the workflow is a thin wrapper, and the two cannot
+  # drift apart.
   tasks = {
     "test:fmt" = {
-      exec = "cargo fmt --check";
+      exec = "treefmt --fail-on-change";
     };
 
     "test:clippy" = {
