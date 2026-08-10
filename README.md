@@ -1,12 +1,16 @@
 # my-project
 
-[![CI](https://github.com/i-am-logger/my-project/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/i-am-logger/my-project/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/my-project?logo=rust&logoColor=white)](https://crates.io/crates/my-project)
+[![Downloads](https://img.shields.io/crates/d/my-project?logo=rust&logoColor=white)](https://crates.io/crates/my-project)
+[![MSRV](https://img.shields.io/crates/msrv/my-project?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![CI](https://img.shields.io/github/actions/workflow/status/i-am-logger/my-project/ci.yml?branch=master&label=CI&logo=githubactions&logoColor=white)](https://github.com/i-am-logger/my-project/actions/workflows/ci.yml)
+[![docs.rs](https://img.shields.io/docsrs/my-project?logo=docsdotrs&logoColor=white)](https://docs.rs/my-project)
 [![codecov](https://codecov.io/gh/i-am-logger/my-project/branch/master/graph/badge.svg)](https://codecov.io/gh/i-am-logger/my-project)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/i-am-logger/my-project/badge)](https://scorecard.dev/viewer/?uri=github.com/i-am-logger/my-project)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
-[![Nix](https://img.shields.io/badge/Nix-5277C3?logo=nixos&logoColor=white)](https://nixos.org)
-[![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Nix](https://img.shields.io/badge/Nix-2b2b2b?logo=nixos&logoColor=white)](https://nixos.org)
+[![devenv](https://img.shields.io/badge/devenv-2b2b2b?logo=nixos&logoColor=white)](https://devenv.sh)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/CC%20BY--NC--SA%204.0-2b2b2b?logo=creativecommons&logoColor=white)](LICENSE)
 
 > A Rust CLI project.
 

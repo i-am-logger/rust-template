@@ -2,6 +2,10 @@
 name = "my-project"
 version = "0.1.0"
 edition = "2024"
+# Edition 2024 selects resolver 3, which makes rust-version affect dependency
+# resolution: cargo will not pick a dependency needing a newer compiler. Set it
+# to the highest rust-version in the tree, measured with `cargo msrv find`.
+rust-version = "1.85"
 authors = ["i-am-logger"]
 description = "A Rust CLI project"
 license = "CC-BY-NC-SA-4.0"
@@ -19,3 +23,8 @@ env_logger = "0.11"
 
 # Error handling
 thiserror = "2.0"
+
+# Manifest-level, so it holds for every cargo invocation rather than only those
+# that inherit RUSTFLAGS from the devenv shell. Unused code is a build failure.
+[lints.rust]
+unused = "deny"

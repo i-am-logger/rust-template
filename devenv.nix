@@ -73,26 +73,34 @@ in
     CARGO_TARGET_DIR = "./target";
   };
 
-  # Development shell setup
+  # Development shell setup.
+  #
+  # The whole banner goes to stderr. `devenv shell -- <cmd>` runs this first, so
+  # anything on stdout is prepended to that command's output - and CI runs
+  # `devenv shell -- cargo metadata` as Swatinem/rust-cache's cmd-format probe,
+  # where a banner in front of the JSON is unparseable. The action swallows that
+  # error, keeps the step green, and caches nothing.
   enterShell = ''
-    clear
-    ${pkgs.figlet}/bin/figlet "${packageName}"
-    echo
     {
-      ${pkgs.lib.optionalString (packageDescription != "") ''echo "• ${packageDescription}"''}
-      echo -e "• \033[1mv${packageVersion}\033[0m"
-      echo -e " \033[0;32m✓\033[0m Development environment ready"
-    } | ${pkgs.boxes}/bin/boxes -d stone -a l -i none
-    echo
-    echo "Available scripts:"
-    echo "  dev-ci        - Run full CI pipeline (treefmt + clippy + check + test)"
-    echo "  dev-test      - Run tests"
-    echo "  dev-fmt       - Check formatting"
-    echo "  dev-lint      - Run clippy"
-    echo "  dev-check     - Check compilation"
-    echo "  dev-run       - Run the application"
-    echo "  dev-build     - Build the application"
-    echo ""
+      clear
+      ${pkgs.figlet}/bin/figlet "${packageName}"
+      echo
+      {
+        ${pkgs.lib.optionalString (packageDescription != "") ''echo "• ${packageDescription}"''}
+        echo -e "• \033[1mv${packageVersion}\033[0m"
+        echo -e " \033[0;32m✓\033[0m Development environment ready"
+      } | ${pkgs.boxes}/bin/boxes -d stone -a l -i none
+      echo
+      echo "Available scripts:"
+      echo "  dev-ci        - Run full CI pipeline (treefmt + clippy + check + test)"
+      echo "  dev-test      - Run tests"
+      echo "  dev-fmt       - Check formatting"
+      echo "  dev-lint      - Run clippy"
+      echo "  dev-check     - Check compilation"
+      echo "  dev-run       - Run the application"
+      echo "  dev-build     - Build the application"
+      echo ""
+    } >&2
   '';
 
   # https://devenv.sh/integrations/treefmt/
@@ -142,10 +150,13 @@ in
     rustfmt = lib.mkForce config.languages.rust.toolchainPackage;
   };
 
+  # treefmt only. A clippy hook would run with its own default flags - no
+  # --all-targets, no --all-features - which is a different cargo fingerprint
+  # from the test:clippy task, so it compiles the crate under clippy a second
+  # time and cannot fail anything that task does not. Formatting is the part
+  # worth catching before the commit rather than after.
   git-hooks.hooks = {
-    # treefmt rather than rustfmt: same formatter as dev-fmt and test:fmt.
     treefmt.enable = true;
-    clippy.enable = true;
   };
 
   # https://devenv.sh/tasks/
@@ -154,6 +165,12 @@ in
   # locally and `devenv test` in .github/workflows/ci.yml execute the same
   # thing by construction — the workflow is a thin wrapper, and the two cannot
   # drift apart.
+  #
+  # The `after` edges are load-bearing. devenv runs tasks with no edge between
+  # them concurrently, so without these, fmt, clippy, check and test all invoke
+  # cargo at once and block on the single lock over ./target. Serialised, they
+  # run cheapest-first — a formatting failure costs no compilation at all — and
+  # each later task reuses what the previous one compiled.
   tasks = {
     "test:fmt" = {
       exec = "treefmt --fail-on-change";
@@ -161,14 +178,17 @@ in
 
     "test:clippy" = {
       exec = "cargo clippy --quiet -- -D warnings";
+      after = [ "test:fmt" ];
     };
 
     "test:check" = {
       exec = "cargo check --quiet";
+      after = [ "test:clippy" ];
     };
 
     "test:unit" = {
       exec = "RUSTFLAGS='-D warnings' cargo test --quiet";
+      after = [ "test:check" ];
     };
   };
 
