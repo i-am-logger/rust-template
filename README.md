@@ -52,6 +52,12 @@ manual bump or publish desynchronises it.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Funding
+
+Solo-maintained, and sponsorship buys maintenance time rather than obligations.
+See [FUNDING.md](FUNDING.md) — including how to arrange a commercial licence,
+which the NonCommercial clause below makes a separate conversation.
+
 ## License
 
 Creative Commons Attribution-NonCommercial-ShareAlike (CC BY-NC-SA) 4.0 International
