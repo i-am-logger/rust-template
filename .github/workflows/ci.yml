@@ -53,6 +53,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # test:mutants-diff mutates the lines changed since the merge base
+          # with the default branch; a shallow clone has no merge base.
+          fetch-depth: 0
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
