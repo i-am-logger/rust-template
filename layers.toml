@@ -8,6 +8,7 @@
 #   adapter    I/O, platform, GPU       turns the outside world into events
 #   bin        a binary                 wires adapters to the core
 #   tool       build and gate tooling   never a dependency of shipped code
+#   harness    benchmarks, difftests    may use any crate; nothing ships using it
 #   quarantine the only home of unsafe  a declared leaf exposing safe wrappers
 #              (pillar 6); add one only by adding it here
 
@@ -23,7 +24,9 @@ may_depend_on = []
 external = ["zerocopy"]
 
 [roles.core]
-may_depend_on = ["domain"]
+# A quarantine crate's safe wrappers (SIMD backends, say) are how a core
+# reaches what it may not write itself.
+may_depend_on = ["domain", "quarantine"]
 external = []
 
 [roles.adapter]
@@ -35,9 +38,13 @@ may_depend_on = ["domain", "core", "adapter", "quarantine"]
 external = ["*"]
 
 [roles.quarantine]
-may_depend_on = ["domain"]
+may_depend_on = ["domain", "quarantine"]
 external = ["*"]
 
 [roles.tool]
 may_depend_on = []
+external = ["*"]
+
+[roles.harness]
+may_depend_on = ["domain", "core", "adapter", "bin", "quarantine", "harness"]
 external = ["*"]

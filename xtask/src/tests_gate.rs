@@ -5,7 +5,8 @@
 //!   reads as a pass while testing nothing. A test that cannot run here is
 //!   `#[cfg]`-gated whole and runs on the CI job that can (pillar T).
 //! * **Exact floors.** `assert!(n > 40)` over 54 fixtures lets 13 vanish
-//!   unnoticed; a control states the count: `assert_eq!(n, 54)`.
+//!   unnoticed; a control states the count: `assert_eq!(n, 54)`. A bound
+//!   against 0 or 1 ("not empty") is a property, not a count, and is allowed.
 //! * **Every `#[ignore]` is listed** in `ignores.toml` with its reason, and
 //!   every listed one still exists: an ignore nobody counts is a test nobody
 //!   runs.
@@ -114,7 +115,11 @@ impl<'a> Visit<'a> for Body {
                 .ok()
                 .and_then(|p| p.into_iter().next());
             if let Some(Expr::Binary(b)) = first {
-                let lit = |e: &Expr| matches!(e, Expr::Lit(l) if matches!(l.lit, Lit::Int(_)));
+                // A count floor: a literal of 2 or more. `n > 0` and `n >= 1`
+                // say "not empty", a property rather than a control; a
+                // control that says `checked > 40` over 54 fixtures lets 13
+                // vanish, and is the case this catches.
+                let lit = |e: &Expr| matches!(e, Expr::Lit(l) if matches!(&l.lit, Lit::Int(i) if i.base10_parse::<u128>().is_ok_and(|v| v >= 2)));
                 let lower = matches!(b.op, BinOp::Gt(_) | BinOp::Ge(_)) && lit(&b.right)
                     || matches!(b.op, BinOp::Lt(_) | BinOp::Le(_)) && lit(&b.left);
                 if lower {
