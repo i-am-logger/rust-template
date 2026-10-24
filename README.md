@@ -55,7 +55,13 @@ workspace: `cargo xtask init` (every budget 0) or `cargo xtask init
 --ratchet` (today's counts, which may only shrink).
 
 The reasoning behind each rule, with its evidence, lives in the
-[rust-code](https://github.com/i-am-logger/rust-code) plugin's skills.
+[rust-code](https://github.com/i-am-logger/rust-code) plugin's skills, which
+`.claude/settings.json` enables for Claude Code sessions in this repository
+(after you trust the folder; each person installs it once with `claude plugin
+install rust-code@rust-code --scope project`). Before the plugin is published,
+use a local copy instead: `claude --plugin-dir ~/Code/rust-code`, or point the
+marketplace at it with `"source": { "source": "directory", "path": "<absolute
+path>" }`.
 
 ## Layout
 
