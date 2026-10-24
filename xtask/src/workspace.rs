@@ -156,7 +156,8 @@ impl Workspace {
 }
 
 /// Directories no gate looks into: build output, tool state, vendored trees,
-/// and test fixtures -- data a test reads, not the project's own documents.
+/// test fixtures and eval cases -- data a test or an eval reads, whose paths
+/// are relative to where it is put, not the project's own documents.
 const SKIP_DIRS: &[&str] = &[
     "target",
     ".git",
@@ -165,6 +166,7 @@ const SKIP_DIRS: &[&str] = &[
     "node_modules",
     "fixture",
     "fixtures",
+    "evals",
 ];
 
 pub(crate) fn files_under(dir: &Path, exts: &[&str]) -> Result<Vec<PathBuf>> {
