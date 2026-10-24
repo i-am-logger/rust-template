@@ -8,6 +8,7 @@
 
 use my_project_core::{Effect, Elapsed, Event, LineRecord, Machine, Wire};
 use proptest::prelude::*;
+use proptest::test_runner::FileFailurePersistence;
 
 /// Large enough that no generated input fills it: a dropped effect would make
 /// the comparison vacuous, and `refused()` is asserted empty below.
@@ -73,6 +74,14 @@ fn input() -> impl Strategy<Value = Vec<u8>> {
 }
 
 proptest! {
+    // Failures persist beside this file (`chunk_invariance.regressions`), to be
+    // committed: an integration test has no lib.rs for proptest's default
+    // location, and a case worth finding once is worth keeping.
+    #![proptest_config(ProptestConfig {
+        failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+        ..ProptestConfig::default()
+    })]
+
     #[test]
     fn chunk_invariance_any_split_gives_the_same_effects(
         bytes in input(),
