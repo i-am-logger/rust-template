@@ -193,6 +193,7 @@ mod tests {
         m.handle(Event::Bytes(Wire::of(b"a\nb\nc\n")));
         assert_eq!(lines(&m), 2);
         assert_eq!(m.refused().effects.get(), 1);
+        assert_eq!(m.refused().total().get(), 1);
     }
 
     #[test]

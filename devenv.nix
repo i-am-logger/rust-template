@@ -232,6 +232,14 @@ in
       after = [ "test:docs" ];
     };
 
+    # Every public function of domain and core is reached by some test. Not
+    # line coverage, which reads high while saying little; mutation testing
+    # (test:mutants-diff) is the strength gate.
+    "test:coverage" = {
+      exec = "cargo xtask coverage";
+      after = [ "test:tests" ];
+    };
+
     # Under the `qa` profile: release speed with overflow checks and
     # debug_assert! on. The proptest seed and case count are pinned so the
     # gate is deterministic; `qa:props` runs fresh seeds at 20 000 cases.
@@ -246,7 +254,7 @@ in
         cargo test --workspace --all-features --doc --profile qa --quiet; b=$?
         [ "$a" -eq 0 ] && [ "$b" -eq 0 ]
       '';
-      after = [ "test:tests" ];
+      after = [ "test:coverage" ];
     };
 
     "test:doc" = {
@@ -342,5 +350,5 @@ in
 
   # https://devenv.sh/tests/
   # Every gate must be named here: a task left out is a task CI never runs.
-  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:tests test:unit test:doc test:bare test:features test:deny test:mutants-diff test:controls";
+  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:tests test:coverage test:unit test:doc test:bare test:features test:deny test:mutants-diff test:controls";
 }

@@ -35,5 +35,6 @@ its own that says why.
   clause; pin the source in `docs/research/sources/MANIFEST.toml`.
 - A performance claim needs a measurement: `cargo xtask bench`, an A/A arm,
   and ranges that do not overlap. Write "unmeasured" rather than estimate.
-- A test that cannot fail is not a test: red first, then green.
+- A test that cannot fail is not a test: red first, then green. Every gate
+  must be seen failing for its reason (`cargo xtask controls`).
 - Strike a wrong claim through in place and say what replaced it.

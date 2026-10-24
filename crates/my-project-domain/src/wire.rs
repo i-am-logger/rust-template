@@ -33,3 +33,18 @@ impl<'a> Wire<'a> {
         self.0.iter().map(|&b| ByteClass::of(b))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_read_yields_one_class_per_byte_in_order() {
+        let w = Wire::of(b"a \n");
+        assert!(
+            w.classes()
+                .eq([ByteClass::Other, ByteClass::Space, ByteClass::Newline])
+        );
+        assert_eq!(w.len(), ReadLen::of(b"abc"));
+    }
+}

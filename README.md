@@ -29,7 +29,30 @@
 
 Every gate runs a positive control first -- a fixture it knows is wrong --
 and fails if it does not find the fault, so a scanner that matches nothing
-cannot read as a clean tree.
+cannot read as a clean tree. `cargo xtask controls` (the last task of
+`devenv test`) goes further: it plants one violation per gate in a scratch
+copy and requires each gate to fail **for the planted reason**.
+
+### Tests that can fail, and how to measure
+
+| Gate | What it holds |
+|---|---|
+| `cargo xtask tests` | no test skips itself into a pass; controls state their count (`assert_eq!`, not `n > K`); every `#[ignore]` is listed in `ignores.toml` with its reason |
+| `cargo xtask coverage` | every public function of domain and core is called by some test |
+| `test:mutants-diff` | every mutant of a changed line in domain or core is caught (cargo-mutants); line coverage is not a gate |
+| `test:unit` | the `qa` profile: release speed with overflow checks and `debug_assert!` on; proptest seed pinned |
+| `test:deny` | licenses, bans and sources of every dependency |
+
+| Instrument | What it does |
+|---|---|
+| `cargo xtask arms <rev> <rev>` | builds both revisions from `git archive` at one path and compares the machine code first: byte-identical is neutral, with no timing |
+| `cargo xtask bench --arm a=<bin> --arm b=<bin> --aa` | timed launches, order rotated, first round dropped, medians with ranges, an A/A arm; overlapping ranges are no result |
+| `MY_PROJECT_STARTUP=1` | the driver prints a mark per startup stage, which `bench` tabulates |
+
+Manual or scheduled: `qa:mutants` (every mutant), `qa:props` (20 000 cases,
+fresh seeds), `qa:advisories` (RustSec). Adopting the gates in an existing
+workspace: `cargo xtask init` (every budget 0) or `cargo xtask init
+--ratchet` (today's counts, which may only shrink).
 
 The reasoning behind each rule, with its evidence, lives in the
 [rust-code](https://github.com/i-am-logger/rust-code) plugin's skills.
