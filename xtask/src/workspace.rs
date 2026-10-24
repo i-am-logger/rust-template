@@ -155,8 +155,17 @@ impl Workspace {
     }
 }
 
-/// Directories no gate looks into: build output, tool state, vendored trees.
-const SKIP_DIRS: &[&str] = &["target", ".git", ".devenv", ".direnv", "node_modules"];
+/// Directories no gate looks into: build output, tool state, vendored trees,
+/// and test fixtures -- data a test reads, not the project's own documents.
+const SKIP_DIRS: &[&str] = &[
+    "target",
+    ".git",
+    ".devenv",
+    ".direnv",
+    "node_modules",
+    "fixture",
+    "fixtures",
+];
 
 pub(crate) fn files_under(dir: &Path, exts: &[&str]) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
