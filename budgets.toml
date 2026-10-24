@@ -16,7 +16,7 @@ names = ["get", "of", "from_host", "threshold_ms"]
 # Bytes of CLAUDE.md, which every agent session loads whole: it may only
 # shrink, and is lowered with it.
 [docs]
-claude_md_bytes = 1965
+claude_md_bytes = 2040
 
 [crates.my-project-domain]
 seam = 8

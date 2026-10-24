@@ -290,6 +290,16 @@ fn test_cases(t: &Targets) -> Vec<Case> {
             reason: "lower bound against a literal".into(),
         },
         Case {
+            name: "a public fn no test calls",
+            edits: vec![app(
+                &t.domain.1,
+                "src/lib.rs",
+                "\npub fn planted_uncalled() {}\n",
+            )],
+            cmd: cmd("cargo xtask coverage"),
+            reason: "no test calls it".into(),
+        },
+        Case {
             name: "an unlisted #[ignore]",
             edits: vec![app(cd, file, "#[test]\n#[ignore]\nfn planted() {}\n")],
             cmd: cmd("cargo xtask tests"),

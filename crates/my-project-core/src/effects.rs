@@ -67,3 +67,21 @@ impl<const N: usize> Default for Effects<N> {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use my_project_domain::Millis;
+
+    #[test]
+    fn a_queue_holds_its_effects_in_order_until_full() {
+        let mut q: Effects<2> = Effects::new();
+        let at = |ms| Effect::Idle(Millis::from_host(ms));
+        assert_eq!(q.push(at(1)), Queued::Taken);
+        assert_eq!(q.push(at(2)), Queued::Taken);
+        assert_eq!(q.push(at(3)), Queued::Dropped);
+        assert_eq!(q.as_slice(), &[at(1), at(2)]);
+        q.clear();
+        assert!(q.as_slice().is_empty());
+    }
+}

@@ -193,6 +193,12 @@ mod tests {
     }
 
     #[test]
+    fn tallies_add_and_saturate() {
+        assert_eq!(Tally(2).saturating_add(Tally(3)).get(), 5);
+        assert_eq!(Tally(u64::MAX).saturating_add(Tally(1)).get(), u64::MAX);
+    }
+
+    #[test]
     fn counts_and_positions_saturate_by_name() {
         assert_eq!(WordCount(u32::MAX).saturating_incr(), WordCount(u32::MAX));
         assert_eq!(

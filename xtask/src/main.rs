@@ -10,7 +10,9 @@ use std::process::ExitCode;
 mod arch;
 mod budgets;
 mod controls;
+mod coverage;
 mod docs;
+mod init;
 mod layers;
 mod measure;
 mod report;
@@ -31,12 +33,15 @@ cargo xtask <gate>
   docs      links, named paths, compile_fail twins, the CLAUDE.md budget
   sources   the research sources manifest and every source citation
   tests     tests that can fail: no skips, exact floors, listed ignores
+  coverage  every public fn of domain and core is called by some test
   all       every gate above, in that order
   controls  plant one violation per gate in a scratch copy; each gate must
             fail, and for the planted reason (slow: it rebuilds per case)
   bench     --arm name=<binary> ... [--aa] [--rounds N] [--floor-ms F]
             [--stdin FILE] [--cold DIR] [-- args]: timed launches, A/A, verdicts
   arms      <rev> <rev> [--bin NAME]: build both at one path, compare code
+  init      [--ratchet]: adopt the gates in an existing workspace; budgets
+            start at 0 (every violation fails) or, with --ratchet, at today's counts
   crates    --role domain,core: the `-p <name>` arguments for crates of
             those roles, so tasks never hard-code a crate list
 ";
@@ -53,6 +58,7 @@ fn main() -> ExitCode {
         "docs" => run(&[docs::run]),
         "sources" => run(&[sources::run]),
         "tests" => run(&[tests_gate::run]),
+        "coverage" => run(&[coverage::run]),
         "all" => run(&[
             arch::run,
             layers::run,
@@ -60,9 +66,11 @@ fn main() -> ExitCode {
             docs::run,
             sources::run,
             tests_gate::run,
+            coverage::run,
         ]),
         "crates" => crates(&args),
         "controls" => controls::run(),
+        "init" => init::run(&args),
         "bench" => project(|root, name| {
             measure::bench(
                 &args,

@@ -95,6 +95,23 @@ pub(crate) struct Workspace {
     pub(crate) layers: Layers,
 }
 
+/// The workspace root and its members, from `cargo metadata` alone -- for
+/// `xtask init`, which runs before there is a layers.toml.
+pub(crate) fn members() -> Result<(PathBuf, Vec<Member>)> {
+    let out = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .output()
+        .context("running cargo metadata")?;
+    if !out.status.success() {
+        bail!(
+            "cargo metadata failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    let meta: Metadata = serde_json::from_slice(&out.stdout).context("parsing cargo metadata")?;
+    Ok((meta.workspace_root, meta.packages))
+}
+
 impl Workspace {
     pub(crate) fn load() -> Result<Self> {
         let out = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
