@@ -31,8 +31,9 @@ pub(crate) enum Kind {
     ExpectAttr,
     /// An `unsafe` block, function, impl or trait (pillar 6).
     UnsafeCode,
-    /// A callback in a public signature: `impl Fn*`, `dyn Fn*`, `fn(..)`, or
-    /// a generic bounded by `Fn*` (pillar 2: effects are polled, not called).
+    /// A callback in a public signature: `fn(..)`, or a trait object, `impl
+    /// Trait` or generic bounded by a behaviour trait -- `Fn*` or a sink like
+    /// `&mut dyn Sink` (pillar 2: effects are polled, not called back).
     CallbackParam,
 }
 
@@ -103,7 +104,25 @@ const INTS: &[&str] = &[
     "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "f32",
     "f64", "char",
 ];
-const CALLBACK_TRAITS: &[&str] = &["Fn", "FnMut", "FnOnce"];
+/// Traits a public core parameter may be bounded by: they describe data, not
+/// behaviour the core would call back into. Any other trait object, `impl
+/// Trait` or bounded generic is a sink -- a callback by another name.
+const DATA_TRAITS: &[&str] = &[
+    "Iterator",
+    "IntoIterator",
+    "AsRef",
+    "Borrow",
+    "Into",
+    "Copy",
+    "Clone",
+    "Debug",
+    "Sized",
+    "PartialEq",
+    "Eq",
+    "PartialOrd",
+    "Ord",
+    "Hash",
+];
 
 fn is_test(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|a| {
@@ -150,7 +169,7 @@ fn is_bool(ty: &Type) -> bool {
 
 fn bound_is_callback(b: &TypeParamBound) -> bool {
     matches!(b, TypeParamBound::Trait(t)
-        if t.path.segments.last().is_some_and(|s| CALLBACK_TRAITS.iter().any(|c| s.ident == c)))
+        if t.path.segments.last().is_some_and(|s| !DATA_TRAITS.iter().any(|c| s.ident == c)))
 }
 
 /// Whether a type is or contains a callback.
@@ -286,6 +305,39 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         if i.unsafety.is_some() {
             self.hit(Kind::UnsafeCode, i.impl_token.span, "unsafe impl");
         }
+        if let Some((_, path, _)) = &i.trait_ {
+            let generic_primitive = path.segments.iter().any(|seg| match &seg.arguments {
+                PathArguments::AngleBracketed(a) => a
+                    .args
+                    .iter()
+                    .any(|g| matches!(g, GenericArgument::Type(t) if has_primitive(t))),
+                _ => false,
+            });
+            let trait_name = path
+                .segments
+                .last()
+                .map_or_else(String::new, |s| s.ident.to_string());
+            if generic_primitive {
+                self.hit(
+                    Kind::PrimitiveApi,
+                    i.impl_token.span,
+                    format!(
+                        "impl {trait_name}<primitive>: a primitive crosses the API through a trait"
+                    ),
+                );
+            }
+            for item in &i.items {
+                if let syn::ImplItem::Type(t) = item {
+                    if has_primitive(&t.ty) {
+                        self.hit(
+                            Kind::PrimitiveApi,
+                            t.ident.span(),
+                            format!("impl {trait_name}: type {} = primitive", t.ident),
+                        );
+                    }
+                }
+            }
+        }
         let outer = self.in_trait_impl;
         self.in_trait_impl = i.trait_.is_some();
         visit::visit_item_impl(self, i);
@@ -391,6 +443,11 @@ impl Default for Q { fn default() -> Self { Q } }
 #[expect(dead_code, reason = "fixture")]
 fn g() { unsafe {} }
 unsafe impl Send for Leak {}
+pub trait Sink { fn put(&mut self, q: Q); }
+pub fn sink(s: &mut dyn Sink) {}
+pub fn feed(i: impl Iterator<Item = Q>) {}
+impl From<u32> for Q { fn from(_: u32) -> Self { Q } }
+impl core::ops::Deref for Q { type Target = u64; fn deref(&self) -> &u64 { &0 } }
 #[cfg(test)]
 mod tests {
     pub fn not_counted(x: u32, b: bool) -> u8 { x as u8 }
@@ -399,8 +456,8 @@ mod tests {
 
 /// What [`FIXTURE`] must count, kind by kind.
 pub(crate) const FIXTURE_EXPECTED: [(Kind, usize); 8] = [
-    // Open.n, Wire::Raw, raw()
-    (Kind::PrimitiveApi, 3),
+    // Open.n, Wire::Raw, raw(), From<u32>, Deref::Target = u64
+    (Kind::PrimitiveApi, 5),
     // Q::get
     (Kind::Seam, 1),
     // Leak
@@ -411,8 +468,8 @@ pub(crate) const FIXTURE_EXPECTED: [(Kind, usize); 8] = [
     (Kind::ExpectAttr, 1),
     // the block, the impl
     (Kind::UnsafeCode, 2),
-    // on(), each()
-    (Kind::CallbackParam, 2),
+    // on(), each(), sink(&mut dyn Sink) -- not feed(impl Iterator)
+    (Kind::CallbackParam, 3),
 ];
 
 /// Runs the control. `Err` names every kind the scanner miscounted.
