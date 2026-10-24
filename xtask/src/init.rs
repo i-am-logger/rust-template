@@ -26,7 +26,7 @@ may_depend_on = []
 external = ["zerocopy"]
 
 [roles.core]
-may_depend_on = ["domain"]
+may_depend_on = ["domain", "quarantine"]
 external = []
 
 [roles.adapter]
@@ -38,11 +38,15 @@ may_depend_on = ["domain", "core", "adapter", "quarantine"]
 external = ["*"]
 
 [roles.quarantine]
-may_depend_on = ["domain"]
+may_depend_on = ["domain", "quarantine"]
 external = ["*"]
 
 [roles.tool]
 may_depend_on = []
+external = ["*"]
+
+[roles.harness]
+may_depend_on = ["domain", "core", "adapter", "bin", "quarantine", "harness"]
 external = ["*"]
 "#;
 
@@ -63,7 +67,7 @@ pub(crate) fn run(args: &[String]) -> Result<ExitCode> {
     let seams: Vec<String> = SEAMS.iter().map(ToString::to_string).collect();
 
     let mut layers = String::from(
-        "# Every crate's role. Assign each: domain, core, adapter, bin, tool or\n# quarantine (see the rust-architecture skill). Written by `cargo xtask init`.\n\n[crates]\n",
+        "# Every crate's role. Assign each: domain, core, adapter, bin, tool or\n# quarantine or harness (see the rust-architecture skill). Written by `cargo xtask init`.\n\n[crates]\n",
     );
     let mut budgets = format!(
         "# Written by `cargo xtask init{}`.\n\n[seams]\nnames = {:?}\n\n",

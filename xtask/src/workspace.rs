@@ -23,6 +23,9 @@ pub(crate) enum Role {
     Bin,
     /// Build and gate tooling.
     Tool,
+    /// Benchmarks and differential tests: may use any crate, and no crate
+    /// that ships may use it.
+    Harness,
     /// The only role that may contain `unsafe` (pillar 6). Off unless declared.
     Quarantine,
 }
@@ -35,6 +38,7 @@ impl Role {
             Self::Adapter => "adapter",
             Self::Bin => "bin",
             Self::Tool => "tool",
+            Self::Harness => "harness",
             Self::Quarantine => "quarantine",
         }
     }
