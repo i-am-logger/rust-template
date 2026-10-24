@@ -22,8 +22,13 @@ _:
     # dependency never breaks the build.
     rustflags = "-D warnings";
 
-    # Add cross-compilation targets here, e.g.
-    #   targets = [ "wasm32-unknown-unknown" ];
+    # Pillar 5's gate (test:bare) builds domain and core for two targets that
+    # have no std at all. Add further cross targets here, e.g.
+    # "wasm32-unknown-unknown".
+    targets = [
+      "x86_64-unknown-none"
+      "thumbv7em-none-eabihf"
+    ];
     # They are fetched by rust-overlay alongside the toolchain, so a
     # `cargo build --target <triple>` in CI needs no extra setup step.
   };
