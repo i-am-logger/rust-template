@@ -229,11 +229,14 @@ in
     # debug_assert! on. The proptest seed and case count are pinned so the
     # gate is deterministic; `qa:props` runs fresh seeds at 20 000 cases.
     # Both halves always run (--no-fail-fast), and either failing fails the task.
+    # All features: they are additive (test:features), so this is the superset,
+    # and code behind `alloc` -- where an allocation per event could hide -- is
+    # exercised rather than compiled out.
     "test:unit" = {
       exec = ''
         export PROPTEST_CASES=256 PROPTEST_RNG_SEED=1
-        cargo nextest run --workspace --cargo-profile qa --no-fail-fast --cargo-quiet; a=$?
-        cargo test --workspace --doc --profile qa --quiet; b=$?
+        cargo nextest run --workspace --all-features --cargo-profile qa --no-fail-fast --cargo-quiet; a=$?
+        cargo test --workspace --all-features --doc --profile qa --quiet; b=$?
         [ "$a" -eq 0 ] && [ "$b" -eq 0 ]
       '';
       after = [ "test:docs" ];
@@ -247,10 +250,13 @@ in
     # Pillar 5: domain and core build for targets that have no std at all, with
     # every default feature off. A `use std` anywhere fails here at link.
     "test:bare" = {
+      # The crate list comes from layers.toml, never from here: a second
+      # domain crate is covered the moment it is given its role.
       exec = ''
+        crates=$(cargo xtask crates --role domain,core) || exit 1
         for t in x86_64-unknown-none thumbv7em-none-eabihf; do
-          cargo build --quiet --no-default-features --target "$t" \
-            -p ${packageName}-domain -p ${packageName}-core || exit 1
+          # shellcheck disable=SC2086 # one word per -p argument
+          cargo build --quiet --no-default-features --target "$t" $crates || exit 1
         done
       '';
       after = [ "test:doc" ];
@@ -262,9 +268,18 @@ in
       exec = "cargo hack check --quiet --workspace --each-feature --no-dev-deps";
       after = [ "test:bare" ];
     };
+
+    # The gates' own gate: one violation planted per gate in a scratch copy
+    # (target/controls), and each gate must fail for the planted reason. Last,
+    # because it rebuilds per case; it is what makes a green run above mean
+    # something rather than "nothing was looked at".
+    "test:controls" = {
+      exec = "cargo xtask controls";
+      after = [ "test:features" ];
+    };
   };
 
   # https://devenv.sh/tests/
   # Every gate must be named here: a task left out is a task CI never runs.
-  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:unit test:doc test:bare test:features";
+  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:unit test:doc test:bare test:features test:controls";
 }
