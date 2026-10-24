@@ -1,0 +1,7 @@
+error[E0277]: the trait bound `ByteLen: From<u32>` is not satisfied
+ --> tests/ui/fail/integer_into_quantity.rs:4:28
+  |
+4 |     let n: ByteLen = 5_u32.into();
+  |                            ^^^^ the trait `From<u32>` is not implemented for `ByteLen`
+  |
+  = note: required for `u32` to implement `Into<ByteLen>`

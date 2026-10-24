@@ -1,0 +1,7 @@
+error[E0308]: mismatched types
+ --> tests/ui/fail/mixed_quantities.rs:4:30
+  |
+4 |     let _ = ByteLen::ZERO == WordCount::ZERO;
+  |             -------------    ^^^^^^^^^^^^^^^ expected `ByteLen`, found `WordCount`
+  |             |
+  |             expected because this is `ByteLen`

@@ -1,0 +1,23 @@
+[package]
+name = "my-project-core"
+description = "The machine: events in, effects out, no I/O (role: core)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+alloc = ["my-project-domain/alloc"]
+
+[dependencies]
+my-project-domain.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+dhat.workspace = true
+
+[lints]
+workspace = true

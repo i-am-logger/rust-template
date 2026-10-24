@@ -26,8 +26,14 @@ permissions:
 # the newest tag, which the release job creates.
 jobs:
   devenv-checks:
-    name: Lint/UT
-    runs-on: ubuntu-latest
+    name: Lint/UT (${{ matrix.os }})
+    # Both platforms run the whole suite: a test that only one platform can
+    # run must run there, never skip itself into a pass on the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     # Cold, this builds the whole dev shell. 30 is not enough for that.
     timeout-minutes: 45
     env:
@@ -76,6 +82,7 @@ jobs:
           # GC on every save, and GC roots protect most of the store, so it
           # sheds little and rebuilds it next run.
           gc-max-store-size-linux: 8G
+          gc-max-store-size-macos: 8G
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv

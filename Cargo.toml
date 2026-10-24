@@ -1,5 +1,13 @@
-[package]
-name = "my-project"
+# A virtual workspace. Each crate has a *role* (see layers.toml), and the role
+# decides which gates apply to it: domain and core are no_std, sans-IO and
+# primitive-free; the bin is the only crate that touches the outside world.
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+# `cargo run` / `cargo build` with no `-p` build the binary, not the workspace.
+default-members = ["crates/my-project"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 # Edition 2024 selects resolver 3, which makes rust-version affect dependency
@@ -7,24 +15,83 @@ edition = "2024"
 # to the highest rust-version in the tree, measured with `cargo msrv find`.
 rust-version = "1.85"
 authors = ["i-am-logger"]
-description = "A Rust CLI project"
 license = "CC-BY-NC-SA-4.0"
 repository = "https://github.com/i-am-logger/my-project"
-keywords = []
-categories = ["command-line-utilities"]
 
-[dependencies]
-# CLI
+# Read by devenv.nix for the shell banner: a virtual workspace has no
+# [package] of its own to read a name from.
+[workspace.metadata.project]
+name = "my-project"
+description = "A Rust project built on the rust-code pillars"
+
+[workspace.dependencies]
+my-project-domain = { path = "crates/my-project-domain", version = "0.1.0" }
+my-project-core = { path = "crates/my-project-core", version = "0.1.0" }
+
+# The only external crate domain and core may use (layers.toml): derive-only,
+# no default features, so it costs no std and no unsafe in our code.
+zerocopy = { version = "0.8", default-features = false, features = ["derive"] }
+
+# Bin and tooling only.
 clap = { version = "4.5", features = ["derive"] }
-
-# Logging
 log = "0.4"
 env_logger = "0.11"
-
-# Error handling
 thiserror = "2.0"
 
-# Manifest-level, so it holds for every cargo invocation rather than only those
-# that inherit RUSTFLAGS from the devenv shell. Unused code is a build failure.
-[lints.rust]
-unused = "deny"
+# xtask only (role: tool).
+anyhow = "1.0"
+syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+# Tests.
+proptest = { version = "1.6", default-features = false, features = ["std"] }
+trybuild = "1.0"
+# Counts allocations in tests through a safe global allocator, so the
+# zero-allocation and no-growth tests need no `unsafe impl GlobalAlloc`.
+dhat = "0.3"
+
+# Lints live here, once, for every crate that sets `[lints] workspace = true`
+# -- which every crate must (`cargo xtask arch`), except a declared quarantine
+# crate (pillar 6). Manifest-level, so they hold for every cargo invocation, not
+# only those inheriting RUSTFLAGS from the devenv shell.
+[workspace.lints.rust]
+# Pillar 6: no unsafe. `forbid` cannot be lowered by an inner `allow`.
+unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "deny"
+missing_debug_implementations = "deny"
+unreachable_pub = "deny"
+# Unused code is a build failure.
+unused = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+# Groups take a lower priority so the single lints below override them;
+# without it clippy's `lint_groups_priority` fires.
+all = { level = "deny", priority = -1 }
+# A suppression must be an `#[expect(lint, reason = "...")]`: it says why, and
+# it fails once the lint stops firing, so it cannot rot into a dead `allow`.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+undocumented_unsafe_blocks = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+too_many_lines = "deny"
+# Configured in clippy.toml (pillar 4: no leaks).
+disallowed_methods = "deny"
+disallowed_types = "deny"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+# Release speed with the checks a release build drops. `test:unit` runs here,
+# so overflow and `debug_assert!` are exercised by the suite rather than only
+# by debug builds nobody times. Benches use plain `release`.
+[profile.qa]
+inherits = "release"
+overflow-checks = true
+debug-assertions = true
