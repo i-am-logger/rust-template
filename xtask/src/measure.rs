@@ -400,11 +400,9 @@ fn compare(a: &Path, b: &Path, revs: &[&String]) -> Result<ExitCode> {
         );
     } else {
         println!(
-            "{} and {}: machine code differs ({} vs {} bytes of text) -- time it: cargo xtask bench --arm a={} --arm b={} --aa",
+            "{} and {}: machine code differs -- time it: cargo xtask bench --arm a={} --arm b={} --aa",
             revs[0],
             revs[1],
-            ta.len(),
-            tb.len(),
             a.display(),
             b.display()
         );
