@@ -85,7 +85,10 @@ fn named_paths(text: &str) -> Vec<String> {
 pub(crate) fn run(ws: &Workspace, r: &mut Report) -> Result<()> {
     control()?;
     let docs = ws.files(&["md"])?;
-    for doc in &docs {
+    // Pinned third-party sources are quoted, not ours: their links point
+    // into their own repositories.
+    let pinned = ws.root.join("docs/research/sources");
+    for doc in docs.iter().filter(|d| !d.starts_with(&pinned)) {
         let text = fs::read_to_string(doc)?;
         let dir = doc.parent().unwrap_or(&ws.root);
         for t in link_targets(&text) {
