@@ -12,6 +12,7 @@ mod budgets;
 mod controls;
 mod docs;
 mod layers;
+mod measure;
 mod report;
 mod scan;
 mod sources;
@@ -33,6 +34,9 @@ cargo xtask <gate>
   all       every gate above, in that order
   controls  plant one violation per gate in a scratch copy; each gate must
             fail, and for the planted reason (slow: it rebuilds per case)
+  bench     --arm name=<binary> ... [--aa] [--rounds N] [--floor-ms F]
+            [--stdin FILE] [--cold DIR] [-- args]: timed launches, A/A, verdicts
+  arms      <rev> <rev> [--bin NAME]: build both at one path, compare code
   crates    --role domain,core: the `-p <name>` arguments for crates of
             those roles, so tasks never hard-code a crate list
 ";
@@ -59,6 +63,14 @@ fn main() -> ExitCode {
         ]),
         "crates" => crates(&args),
         "controls" => controls::run(),
+        "bench" => project(|root, name| {
+            measure::bench(
+                &args,
+                root,
+                &format!("{}_STARTUP", name.to_uppercase().replace('-', "_")),
+            )
+        }),
+        "arms" => project(|root, name| measure::arms(&args, root, name)),
         _ => {
             eprint!("{HELP}");
             return if gate == "help" {
@@ -75,6 +87,25 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Runs `f` with the workspace root and the project name from
+/// `[workspace.metadata.project]`.
+fn project(
+    f: impl FnOnce(&std::path::Path, &str) -> anyhow::Result<ExitCode>,
+) -> anyhow::Result<ExitCode> {
+    let ws = workspace::Workspace::load()?;
+    let manifest: toml::Table =
+        toml::from_str(&std::fs::read_to_string(ws.root.join("Cargo.toml"))?)?;
+    let name = manifest
+        .get("workspace")
+        .and_then(|w| w.get("metadata"))
+        .and_then(|m| m.get("project"))
+        .and_then(|p| p.get("name"))
+        .and_then(toml::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Cargo.toml needs [workspace.metadata.project] name"))?
+        .to_string();
+    f(&ws.root, &name)
 }
 
 /// Prints `-p <name>` for every crate whose role is in `--role a,b`.

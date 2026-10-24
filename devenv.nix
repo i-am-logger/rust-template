@@ -280,13 +280,67 @@ in
     # (target/controls), and each gate must fail for the planted reason. Last,
     # because it rebuilds per case; it is what makes a green run above mean
     # something rather than "nothing was looked at".
+    # What may enter the dependency graph: licenses, bans (wildcards,
+    # duplicates), sources. Offline; advisories need the network (qa:advisories).
+    "test:deny" = {
+      exec = "cargo deny --log-level error check licenses bans sources";
+      after = [ "test:features" ];
+    };
+
+    # Pillar T's strength gate: every mutant of a changed line in domain or
+    # core must be caught by some test (cargo-mutants, whole-workspace tests;
+    # .cargo/mutants.toml). A survivor is a change no test notices. No merge
+    # base is an error, not a pass: a gate that cannot see the diff has
+    # checked nothing (CI checks out full history for it).
+    "test:mutants-diff" = {
+      exec = ''
+        base=""
+        for ref in "$(git symbolic-ref -q --short refs/remotes/origin/HEAD)" origin/master origin/main master main; do
+          [ -n "$ref" ] && base=$(git merge-base HEAD "$ref" 2>/dev/null) && break
+        done
+        [ -n "$base" ] || { echo "no merge base with the default branch: fetch full history"; exit 1; }
+        mkdir -p target
+        git diff "$base" -- crates > target/mutants.diff
+        if [ ! -s target/mutants.diff ]; then
+          echo "no changed lines under crates/ since $base: no mutants to test"
+          exit 0
+        fi
+        crates=$(cargo xtask crates --role domain,core) || exit 1
+        # shellcheck disable=SC2086 # one word per -p argument
+        PROPTEST_CASES=256 PROPTEST_RNG_SEED=1 cargo mutants $crates --in-diff target/mutants.diff
+      '';
+      after = [ "test:deny" ];
+    };
+
     "test:controls" = {
       exec = "cargo xtask controls";
-      after = [ "test:features" ];
+      after = [ "test:mutants-diff" ];
+    };
+
+    # Every mutant of domain and core, not only changed lines.
+    "qa:mutants" = {
+      exec = ''
+        crates=$(cargo xtask crates --role domain,core) || exit 1
+        # shellcheck disable=SC2086 # one word per -p argument
+        PROPTEST_CASES=256 PROPTEST_RNG_SEED=1 cargo mutants $crates
+      '';
+    };
+
+    # Properties at depth, with fresh seeds: the gate pins its seed so it is
+    # deterministic; this is where new cases are found (and then committed as
+    # regressions beside the test).
+    "qa:props" = {
+      exec = "PROPTEST_CASES=20000 cargo nextest run --workspace --all-features --cargo-profile qa";
+    };
+
+    # Not in enterTest: these need the network or minutes, and run by hand or
+    # on a schedule.
+    "qa:advisories" = {
+      exec = "cargo deny check advisories";
     };
   };
 
   # https://devenv.sh/tests/
   # Every gate must be named here: a task left out is a task CI never runs.
-  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:tests test:unit test:doc test:bare test:features test:controls";
+  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:tests test:unit test:doc test:bare test:features test:deny test:mutants-diff test:controls";
 }

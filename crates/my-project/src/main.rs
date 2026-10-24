@@ -9,6 +9,8 @@ use std::io::{self, Read, Write};
 use std::process::ExitCode;
 use std::time::Instant;
 
+mod marks;
+
 use clap::Parser;
 use my_project_core::{Effect, Elapsed, Event, Machine, Millis, Tally, Wire};
 
@@ -38,8 +40,11 @@ enum Error {
 }
 
 fn main() -> ExitCode {
+    let marks = marks::Marks::start();
     env_logger::init();
-    match run(&Args::parse()) {
+    let args = Args::parse();
+    marks.mark("args");
+    match run(&args, &marks) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             log::error!(
@@ -51,7 +56,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(args: &Args) -> Result<(), Error> {
+fn run(args: &Args, marks: &marks::Marks) -> Result<(), Error> {
     let clock = Instant::now();
     let now = || Millis::from_host(u64::try_from(clock.elapsed().as_millis()).unwrap_or(u64::MAX));
     // Boxed once at startup: the machine's queue is a fixed array, and the
@@ -61,7 +66,9 @@ fn run(args: &Args) -> Result<(), Error> {
     let mut buf = vec![0_u8; args.chunk.max(1)];
     let mut stdin = io::stdin().lock();
     let mut out = io::BufWriter::new(io::stdout().lock());
+    marks.mark("ready");
 
+    let mut first = true;
     loop {
         let n = stdin.read(&mut buf).map_err(Error::Read)?;
         machine.handle(Event::Tick(now()));
@@ -71,10 +78,14 @@ fn run(args: &Args) -> Result<(), Error> {
             machine.handle(Event::Bytes(Wire::of(&buf[..n])));
         }
         drain(&mut machine, &mut out)?;
+        if std::mem::take(&mut first) {
+            marks.mark("first read");
+        }
         if n == 0 {
             break;
         }
     }
+    marks.mark("end of input");
     let refused = machine.refused();
     if refused.total() != Tally::ZERO {
         log::warn!("refused: {refused:?}");

@@ -196,6 +196,32 @@ mod tests {
     }
 
     #[test]
+    fn clearing_forgets_what_was_read_and_the_queue_refills_from_empty() {
+        let mut m: Machine<2> = Machine::new(Elapsed::threshold_ms(10));
+        m.handle(Event::Bytes(Wire::of(b"a\nb\n")));
+        assert_eq!(lines(&m), 2);
+        m.clear_effects();
+        assert!(m.effects().is_empty());
+        m.handle(Event::Bytes(Wire::of(b"c\nd\n")));
+        assert_eq!(lines(&m), 2);
+        assert_eq!(
+            m.refused().effects.get(),
+            0,
+            "a cleared queue has room again"
+        );
+    }
+
+    #[test]
+    fn an_empty_read_is_not_activity() {
+        let mut m: Machine<4> = Machine::new(Elapsed::threshold_ms(10));
+        m.handle(Event::Bytes(Wire::of(b"x")));
+        m.handle(Event::Tick(Millis::from_host(100)));
+        m.handle(Event::Bytes(Wire::of(b"")));
+        m.handle(Event::Tick(Millis::from_host(200)));
+        assert_eq!(m.effects(), &[Effect::Idle(Millis::from_host(200))]);
+    }
+
+    #[test]
     fn events_after_the_end_are_refused_and_counted() {
         let mut m: Machine<4> = Machine::new(Elapsed::threshold_ms(10));
         m.handle(Event::End);

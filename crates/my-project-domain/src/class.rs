@@ -53,13 +53,28 @@ impl ByteClass {
 mod tests {
     use super::*;
 
+    /// The classes as `core` defines whitespace, written independently of
+    /// [`reference`]: comparing the table with the definition it was built
+    /// from would pass whatever that definition said. `core`'s
+    /// `is_ascii_whitespace` leaves out vertical tab (0x0b), which the class
+    /// table counts as space, so it is added here by name.
+    fn independent(b: u8) -> ByteClass {
+        if b == b'\n' {
+            ByteClass::Newline
+        } else if b.is_ascii_whitespace() || b == 0x0b {
+            ByteClass::Space
+        } else {
+            ByteClass::Other
+        }
+    }
+
     /// Exhaustive: the domain is finite, so every input is checked, and the
     /// count is asserted so a loop that silently ran short cannot pass.
     #[test]
-    fn the_table_agrees_with_its_definition_for_every_byte() {
+    fn the_table_agrees_with_an_independent_definition_for_every_byte() {
         let mut checked = 0_u32;
         for b in u8::MIN..=u8::MAX {
-            assert_eq!(ByteClass::of(b), reference(b), "byte {b:#04x}");
+            assert_eq!(ByteClass::of(b), independent(b), "byte {b:#04x}");
             checked += 1;
         }
         assert_eq!(checked, 256, "the sweep did not cover every byte");
