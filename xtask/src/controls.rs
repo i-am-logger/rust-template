@@ -255,6 +255,49 @@ fn docs_cases(t: &Targets) -> Vec<Case> {
     ]
 }
 
+fn test_cases(t: &Targets) -> Vec<Case> {
+    let cd = &t.core.1;
+    let file = "tests/planted_tests.rs";
+    vec![
+        Case {
+            name: "a test that skips itself",
+            edits: vec![app(
+                cd,
+                file,
+                "#[test]\nfn planted() { if !cfg!(target_os = \"none\") { return; } }\n",
+            )],
+            cmd: cmd("cargo xtask tests"),
+            reason: "returns early after probing".into(),
+        },
+        Case {
+            name: "a test that says it skipped",
+            edits: vec![app(
+                cd,
+                file,
+                "#[test]\nfn planted() { eprintln!(\"skipped: no device\"); }\n",
+            )],
+            cmd: cmd("cargo xtask tests"),
+            reason: "prints that it skipped".into(),
+        },
+        Case {
+            name: "an inexact floor",
+            edits: vec![app(
+                cd,
+                file,
+                "#[test]\nfn planted() { let n = 5; assert!(n > 3); }\n",
+            )],
+            cmd: cmd("cargo xtask tests"),
+            reason: "lower bound against a literal".into(),
+        },
+        Case {
+            name: "an unlisted #[ignore]",
+            edits: vec![app(cd, file, "#[test]\n#[ignore]\nfn planted() {}\n")],
+            cmd: cmd("cargo xtask tests"),
+            reason: "not listed in ignores.toml".into(),
+        },
+    ]
+}
+
 fn compile_cases(t: &Targets) -> Vec<Case> {
     let ((d, dd), (c, cd), (b, bd)) = (&t.domain, &t.core, &t.bin);
     let main = "src/main.rs";
@@ -379,6 +422,7 @@ pub(crate) fn run() -> Result<ExitCode> {
         budget_cases(&t),
         arch_cases(&t),
         docs_cases(&t),
+        test_cases(&t),
         compile_cases(&t),
     ]
     .into_iter()

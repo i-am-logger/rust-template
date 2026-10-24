@@ -15,6 +15,7 @@ mod layers;
 mod report;
 mod scan;
 mod sources;
+mod tests_gate;
 mod workspace;
 
 use report::Report;
@@ -28,6 +29,7 @@ cargo xtask <gate>
             (--print shows the current counts)
   docs      links, named paths, compile_fail twins, the CLAUDE.md budget
   sources   the research sources manifest and every source citation
+  tests     tests that can fail: no skips, exact floors, listed ignores
   all       every gate above, in that order
   controls  plant one violation per gate in a scratch copy; each gate must
             fail, and for the planted reason (slow: it rebuilds per case)
@@ -46,12 +48,14 @@ fn main() -> ExitCode {
         "budgets" => run(&[budgets::run]),
         "docs" => run(&[docs::run]),
         "sources" => run(&[sources::run]),
+        "tests" => run(&[tests_gate::run]),
         "all" => run(&[
             arch::run,
             layers::run,
             budgets::run,
             docs::run,
             sources::run,
+            tests_gate::run,
         ]),
         "crates" => crates(&args),
         "controls" => controls::run(),
