@@ -139,19 +139,42 @@ fn line(span: Span) -> usize {
     span.start().line
 }
 
-/// Whether a type mentions a raw primitive anywhere inside it.
+/// Whether a path's generic arguments mention a raw primitive: `Option<u8>`,
+/// `Iterator<Item = u8>`, `Fn(u8) -> u32`.
+fn args_have_primitive(args: &PathArguments) -> bool {
+    match args {
+        PathArguments::AngleBracketed(a) => a.args.iter().any(|g| match g {
+            GenericArgument::Type(t) => has_primitive(t),
+            GenericArgument::AssocType(at) => has_primitive(&at.ty),
+            _ => false,
+        }),
+        PathArguments::Parenthesized(p) => {
+            p.inputs.iter().any(has_primitive)
+                || matches!(&p.output, ReturnType::Type(_, t) if has_primitive(t))
+        }
+        PathArguments::None => false,
+    }
+}
+
+fn bounds_have_primitive<'a>(mut bounds: impl Iterator<Item = &'a TypeParamBound>) -> bool {
+    bounds.any(|b| matches!(b, TypeParamBound::Trait(t) if t.path.segments.iter().any(|s| args_have_primitive(&s.arguments))))
+}
+
+/// Whether a type mentions a raw primitive anywhere inside it, including in
+/// trait bounds (`impl Iterator<Item = u8>`) and function types.
 fn has_primitive(ty: &Type) -> bool {
     match ty {
-        Type::Path(p) => p.path.segments.iter().any(|s| {
-            INTS.iter().any(|i| s.ident == i)
-                || match &s.arguments {
-                    PathArguments::AngleBracketed(a) => a.args.iter().any(|g| match g {
-                        GenericArgument::Type(t) => has_primitive(t),
-                        _ => false,
-                    }),
-                    _ => false,
-                }
-        }),
+        Type::Path(p) => p
+            .path
+            .segments
+            .iter()
+            .any(|s| INTS.iter().any(|i| s.ident == i) || args_have_primitive(&s.arguments)),
+        Type::ImplTrait(t) => bounds_have_primitive(t.bounds.iter()),
+        Type::TraitObject(t) => bounds_have_primitive(t.bounds.iter()),
+        Type::BareFn(f) => {
+            f.inputs.iter().any(|a| has_primitive(&a.ty))
+                || matches!(&f.output, ReturnType::Type(_, t) if has_primitive(t))
+        }
         Type::Reference(r) => has_primitive(&r.elem),
         Type::Slice(s) => has_primitive(&s.elem),
         Type::Array(a) => has_primitive(&a.elem),
@@ -413,6 +436,50 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         visit::visit_item_enum(self, e);
     }
 
+    fn visit_item_const(&mut self, c: &'ast syn::ItemConst) {
+        if is_pub(&c.vis) && has_primitive(&c.ty) {
+            self.hit(
+                Kind::PrimitiveApi,
+                c.ident.span(),
+                format!("pub const {}: primitive", c.ident),
+            );
+        }
+        visit::visit_item_const(self, c);
+    }
+
+    fn visit_item_static(&mut self, s: &'ast syn::ItemStatic) {
+        if is_pub(&s.vis) && has_primitive(&s.ty) {
+            self.hit(
+                Kind::PrimitiveApi,
+                s.ident.span(),
+                format!("pub static {}: primitive", s.ident),
+            );
+        }
+        visit::visit_item_static(self, s);
+    }
+
+    fn visit_item_type(&mut self, t: &'ast syn::ItemType) {
+        if is_pub(&t.vis) && has_primitive(&t.ty) {
+            self.hit(
+                Kind::PrimitiveApi,
+                t.ident.span(),
+                format!("pub type {} = primitive", t.ident),
+            );
+        }
+        visit::visit_item_type(self, t);
+    }
+
+    fn visit_impl_item_const(&mut self, c: &'ast syn::ImplItemConst) {
+        if !self.in_trait_impl && is_pub(&c.vis) && has_primitive(&c.ty) {
+            self.hit(
+                Kind::PrimitiveApi,
+                c.ident.span(),
+                format!("pub const {}: primitive", c.ident),
+            );
+        }
+        visit::visit_impl_item_const(self, c);
+    }
+
     fn visit_expr_cast(&mut self, c: &'ast syn::ExprCast) {
         self.hit(Kind::AsCast, c.as_token.span, "as cast");
         visit::visit_expr_cast(self, c);
@@ -444,6 +511,9 @@ impl Default for Q { fn default() -> Self { Q } }
 fn g() { unsafe {} }
 unsafe impl Send for Leak {}
 pub trait Sink { fn put(&mut self, q: Q); }
+pub const LIMIT: u32 = 3;
+pub type Id = u64;
+pub fn bytes() -> impl Iterator<Item = u8> { core::iter::empty() }
 pub fn sink(s: &mut dyn Sink) {}
 pub fn feed(i: impl Iterator<Item = Q>) {}
 impl From<u32> for Q { fn from(_: u32) -> Self { Q } }
@@ -456,8 +526,9 @@ mod tests {
 
 /// What [`FIXTURE`] must count, kind by kind.
 pub(crate) const FIXTURE_EXPECTED: [(Kind, usize); 8] = [
-    // Open.n, Wire::Raw, raw(), From<u32>, Deref::Target = u64
-    (Kind::PrimitiveApi, 5),
+    // Open.n, Wire::Raw, raw(), From<u32>, Deref::Target = u64, LIMIT, Id,
+    // bytes() -> impl Iterator<Item = u8>
+    (Kind::PrimitiveApi, 8),
     // Q::get
     (Kind::Seam, 1),
     // Leak
