@@ -338,7 +338,10 @@ pub(crate) fn arms(args: &[String], root: &Path, default_bin: &str) -> Result<Ex
             String::from_utf8_lossy(&tar.stderr)
         );
         let mut x = Command::new("tar")
-            .args(["-x", "-C"])
+            // -m: extracted files get the current time, not the commit's, so cargo
+            // sees every file as newer than the last arm's build and rebuilds it;
+            // with the commit's times an older revision could look up to date.
+            .args(["-x", "-m", "-C"])
             .arg(&src)
             .stdin(Stdio::piped())
             .spawn()?;

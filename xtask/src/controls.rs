@@ -71,6 +71,12 @@ fn budget_cases(t: &Targets) -> Vec<Case> {
             reason: "primitive_api is".into(),
         },
         Case {
+            name: "a public constant of a primitive type",
+            edits: vec![app(dd, lib, "\npub const PLANTED_LIMIT: u32 = 3;\n")],
+            cmd: cmd("cargo xtask budgets"),
+            reason: "pub const PLANTED_LIMIT: primitive".into(),
+        },
+        Case {
             name: "public newtype field",
             edits: vec![app(dd, lib, "\npub struct PlantedLeaky(pub u8);\n")],
             cmd: cmd("cargo xtask budgets"),

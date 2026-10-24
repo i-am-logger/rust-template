@@ -23,6 +23,12 @@ disallowed-methods = [
   { path = "std::mem::ManuallyDrop::new", reason = "pillar 4: own, don't leak -- use an RAII guard" },
   { path = "core::mem::forget", reason = "pillar 4: own, don't leak -- use an RAII guard" },
   { path = "core::mem::ManuallyDrop::new", reason = "pillar 4: own, don't leak -- use an RAII guard" },
+  # Sans-IO (pillar 2): no thread, no ambient randomness. `rand` is not in the
+  # graph, so its paths are marked allow-invalid: they cost nothing until
+  # someone adds the crate, which is exactly when they must fire.
+  { path = "std::thread::spawn", reason = "pillar 2: the core does not spawn; the host owns threads" },
+  { path = "rand::random", reason = "pillar 2: randomness enters as an event (a seed or a draw)", allow-invalid = true },
+  { path = "rand::thread_rng", reason = "pillar 2: randomness enters as an event (a seed or a draw)", allow-invalid = true },
 ]
 
 # Domain and core are sans-IO (pillar 2): time and randomness arrive as

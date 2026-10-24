@@ -43,6 +43,7 @@ impl BytePos {
 /// may be larger than any line we keep -- and a type that silently narrowed
 /// one into the other would truncate without saying so.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[repr(transparent)]
 pub struct ReadLen(pub(crate) usize);
 
 impl ReadLen {
@@ -114,6 +115,7 @@ impl WordCount {
 /// The core never reads a clock (pillar 2): the host reads one and hands the
 /// time in as [`crate::Event::Tick`]. Only the host creates these.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[repr(transparent)]
 pub struct Millis(pub(crate) u64);
 
 impl Millis {
@@ -138,6 +140,7 @@ impl Millis {
 /// named threshold below: an `Elapsed` you hold came from [`Millis::since`] or
 /// is a deliberate configuration value, never a stray number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[repr(transparent)]
 pub struct Elapsed(pub(crate) u64);
 
 impl Elapsed {
@@ -151,6 +154,7 @@ impl Elapsed {
 /// How many times something happened. For counters the host reads: refusals,
 /// drops. Saturates, and says so in its name.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[repr(transparent)]
 pub struct Tally(pub(crate) u64);
 
 impl Tally {
