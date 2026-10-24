@@ -1,0 +1,8 @@
+# Every #[ignore]d test, with why. `cargo xtask tests` fails on an ignored
+# test not listed here, on a listed one that no longer exists, and on an
+# empty reason: an ignore nobody counts is a test nobody runs.
+#
+# [[ignore]]
+# file = "crates/<crate>/tests/<file>.rs"
+# test = "<fn name>"
+# reason = "<why, and what would let it run>"

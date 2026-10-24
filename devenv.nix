@@ -225,6 +225,13 @@ in
       after = [ "test:budgets" ];
     };
 
+    # Pillar T: tests that can fail -- none skips itself into a pass, every
+    # control states its count, every #[ignore] is listed with its reason.
+    "test:tests" = {
+      exec = "cargo xtask tests";
+      after = [ "test:docs" ];
+    };
+
     # Under the `qa` profile: release speed with overflow checks and
     # debug_assert! on. The proptest seed and case count are pinned so the
     # gate is deterministic; `qa:props` runs fresh seeds at 20 000 cases.
@@ -239,7 +246,7 @@ in
         cargo test --workspace --all-features --doc --profile qa --quiet; b=$?
         [ "$a" -eq 0 ] && [ "$b" -eq 0 ]
       '';
-      after = [ "test:docs" ];
+      after = [ "test:tests" ];
     };
 
     "test:doc" = {
@@ -281,5 +288,5 @@ in
 
   # https://devenv.sh/tests/
   # Every gate must be named here: a task left out is a task CI never runs.
-  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:unit test:doc test:bare test:features test:controls";
+  enterTest = lib.mkForce "devenv tasks run test:fmt test:sources test:clippy test:check test:arch test:layers test:budgets test:docs test:tests test:unit test:doc test:bare test:features test:controls";
 }
