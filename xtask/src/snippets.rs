@@ -7,7 +7,8 @@
 //! `rustdoc --test`, linked against the domain and core crates: a block runs
 //! as a doctest, so `ignore`, `no_run`, `compile_fail` and `should_panic` mean
 //! what they mean in rustdoc. A block that names a crate the project does not
-//! have must say `ignore` and why.
+//! have must say `ignore` and why. Blocks are compiled with `--cfg test`, so a
+//! `#[cfg(test)]` module in a document is compiled rather than silently empty.
 //!
 //! `snippets.toml` maps the crate names the documents use to this project's
 //! crates (docs written against the template's `my_project_domain` read the
@@ -103,7 +104,7 @@ fn test(
     scratch: &Path,
 ) -> Result<Option<String>> {
     let mut cmd = Command::new("rustdoc");
-    cmd.args(["--test", "--edition", "2024", "-L"])
+    cmd.args(["--test", "--edition", "2024", "--cfg", "test", "-L"])
         .arg(format!("dependency={}", deps.display()))
         .arg(doc)
         .env("RUSTDOC_TEMP", scratch);
