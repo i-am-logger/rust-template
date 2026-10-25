@@ -199,7 +199,6 @@ fn snippet_cases() -> Vec<Case> {
 
 fn docs_cases(t: &Targets) -> Vec<Case> {
     let dd = &t.domain.1;
-    let mark = concat!("[", "[source:");
     vec![
         Case {
             name: "compile_fail case with no twin",
@@ -237,6 +236,12 @@ fn docs_cases(t: &Targets) -> Vec<Case> {
             cmd: cmd("cargo xtask docs"),
             reason: "over its budget".into(),
         },
+    ]
+}
+
+fn sources_cases() -> Vec<Case> {
+    let mark = concat!("[", "[source:");
+    vec![
         Case {
             name: "an unknown citation",
             edits: vec![Edit::Write(
@@ -245,6 +250,24 @@ fn docs_cases(t: &Targets) -> Vec<Case> {
             )],
             cmd: cmd("cargo xtask sources"),
             reason: "does not list".into(),
+        },
+        Case {
+            name: "an uppercase citation key",
+            edits: vec![Edit::Write(
+                "docs/planted.md".into(),
+                format!("Per {mark} Planted-Key]] section 1.\n"),
+            )],
+            cmd: cmd("cargo xtask sources"),
+            reason: "outside the key alphabet".into(),
+        },
+        Case {
+            name: "a citation key split across lines",
+            edits: vec![Edit::Write(
+                "docs/planted.md".into(),
+                format!("Per {mark} planted-\nkey]] section 1.\n"),
+            )],
+            cmd: cmd("cargo xtask sources"),
+            reason: "split across lines".into(),
         },
         Case {
             name: "an unaccounted source file",
@@ -450,6 +473,7 @@ pub(crate) fn run() -> Result<ExitCode> {
         budget_cases(&t),
         arch_cases(&t),
         docs_cases(&t),
+        sources_cases(),
         snippet_cases(),
         test_cases(&t),
         compile_cases(&t),
