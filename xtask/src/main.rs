@@ -17,6 +17,7 @@ mod layers;
 mod measure;
 mod report;
 mod scan;
+mod snippets;
 mod sources;
 mod tests_gate;
 mod workspace;
@@ -34,6 +35,7 @@ cargo xtask <gate>
   sources   the research sources manifest and every source citation
   tests     tests that can fail: no skips, exact floors, listed ignores
   coverage  every public fn of domain and core is called by some test
+  snippets  every Rust block in the project's Markdown compiles and runs
   all       every gate above, in that order
   controls  plant one violation per gate in a scratch copy; each gate must
             fail, and for the planted reason (slow: it rebuilds per case)
@@ -59,6 +61,7 @@ fn main() -> ExitCode {
         "sources" => run(&[sources::run]),
         "tests" => run(&[tests_gate::run]),
         "coverage" => run(&[coverage::run]),
+        "snippets" => run(&[snippets::run]),
         "all" => run(&[
             arch::run,
             layers::run,
