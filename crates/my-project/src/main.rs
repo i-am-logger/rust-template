@@ -14,8 +14,10 @@ mod marks;
 use clap::Parser;
 use my_project_core::{Effect, Elapsed, Event, Machine, Millis, Tally, Wire};
 
-/// How many effects the core may owe between drains. The driver drains after
-/// every read, so this bounds what one read can produce.
+/// How many effects the core may owe between drains. A byte owes at most one
+/// effect (a newline ends a line), so the driver hands the core at most this
+/// many bytes at a time and drains in between: the queue can never overflow,
+/// whatever the read size. Feeding a read in slices copies nothing.
 const EFFECTS: usize = 1024;
 
 /// Count lines and words on stdin, reporting quiet spells.
@@ -67,30 +69,41 @@ fn run(args: &Args, marks: &marks::Marks) -> Result<(), Error> {
     let mut stdin = io::stdin().lock();
     let mut out = io::BufWriter::new(io::stdout().lock());
     marks.mark("ready");
-
-    let mut first = true;
-    loop {
-        let n = stdin.read(&mut buf).map_err(Error::Read)?;
-        machine.handle(Event::Tick(now()));
-        if n == 0 {
-            machine.handle(Event::End);
-        } else {
-            machine.handle(Event::Bytes(Wire::of(&buf[..n])));
-        }
-        drain(&mut machine, &mut out)?;
-        if std::mem::take(&mut first) {
-            marks.mark("first read");
-        }
-        if n == 0 {
-            break;
-        }
-    }
+    pump(&mut stdin, &mut out, &mut machine, &mut buf, now, marks)?;
     marks.mark("end of input");
     let refused = machine.refused();
     if refused.total() != Tally::ZERO {
         log::warn!("refused: {refused:?}");
     }
     out.flush().map_err(Error::Write)
+}
+
+/// Reads `input` to its end, turning each read and the clock into events.
+fn pump(
+    input: &mut impl Read,
+    out: &mut impl Write,
+    machine: &mut Machine<EFFECTS>,
+    buf: &mut [u8],
+    now: impl Fn() -> Millis,
+    marks: &marks::Marks,
+) -> Result<(), Error> {
+    let mut first = true;
+    loop {
+        let n = input.read(buf).map_err(Error::Read)?;
+        machine.handle(Event::Tick(now()));
+        drain(machine, out)?;
+        if n == 0 {
+            machine.handle(Event::End);
+            return drain(machine, out);
+        }
+        for part in buf[..n].chunks(EFFECTS) {
+            machine.handle(Event::Bytes(Wire::of(part)));
+            drain(machine, out)?;
+        }
+        if std::mem::take(&mut first) {
+            marks.mark("first read");
+        }
+    }
 }
 
 fn drain(machine: &mut Machine<EFFECTS>, out: &mut impl Write) -> Result<(), Error> {
@@ -105,4 +118,33 @@ fn drain(machine: &mut Machine<EFFECTS>, out: &mut impl Write) -> Result<(), Err
     }
     machine.clear_effects();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A read larger than the effect queue, of lines short enough that it owes
+    /// more effects than the queue holds: every line must still come out.
+    #[test]
+    fn a_read_that_owes_more_effects_than_the_queue_holds_loses_nothing() {
+        let line = b"the quick brown fox jumps over the lazy dog\n";
+        let input = line.repeat(23_832);
+        let mut machine: Box<Machine<EFFECTS>> =
+            Box::new(Machine::new(Elapsed::threshold_ms(1_000)));
+        let mut buf = vec![0_u8; 64 * 1024];
+        let mut out = Vec::new();
+        let marks = marks::Marks::start();
+        pump(
+            &mut input.as_slice(),
+            &mut out,
+            &mut machine,
+            &mut buf,
+            || Millis::ZERO,
+            &marks,
+        )
+        .expect("pump");
+        assert_eq!(out.iter().filter(|&&b| b == b'\n').count(), 23_832);
+        assert_eq!(machine.refused().total(), Tally::ZERO);
+    }
 }
