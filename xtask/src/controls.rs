@@ -645,7 +645,8 @@ fn replace(p: &Path, old: &str, new: &str) -> Result<()> {
     Ok(())
 }
 
-/// A fresh copy of the workspace sources, without build output or VCS state.
+/// A fresh copy of the workspace sources, without build output, VCS state
+/// or another checkout inside the tree.
 fn copy_workspace(root: &Path, work: &Path) -> Result<()> {
     if work.exists() {
         fs::remove_dir_all(work)?;
@@ -664,11 +665,39 @@ fn copy_workspace(root: &Path, work: &Path) -> Result<()> {
             }
             let child = rel.join(name.as_ref());
             if entry.file_type()?.is_dir() {
-                stack.push(child);
+                // Another checkout (a worktree, a submodule) is not this
+                // workspace: the gates skip it, so the copy does too.
+                if !root.join(&child).join(".git").exists() {
+                    stack.push(child);
+                }
             } else if entry.file_type()?.is_file() {
                 fs::copy(root.join(&child), work.join(&child))?;
             }
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn another_checkout_inside_the_tree_is_not_copied() {
+        let base = std::env::temp_dir().join(format!("xtask-copy-{}", std::process::id()));
+        let (root, work) = (base.join("root"), base.join("work"));
+        let nested = root.join(".claude/worktrees/lane");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(root.join("own.md"), "").unwrap();
+        fs::write(nested.join(".git"), "gitdir: elsewhere\n").unwrap();
+        fs::write(nested.join("theirs.md"), "").unwrap();
+        let copied = copy_workspace(&root, &work).map(|()| {
+            (
+                work.join("own.md").exists(),
+                work.join(".claude/worktrees/lane").exists(),
+            )
+        });
+        fs::remove_dir_all(&base).unwrap();
+        assert_eq!(copied.unwrap(), (true, false));
+    }
 }
