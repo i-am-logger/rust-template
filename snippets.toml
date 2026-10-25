@@ -1,0 +1,5 @@
+# The crate names the project's Markdown code blocks import, mapped to its
+# own crates (`cargo xtask snippets`). The template's crates are already
+# importable under their own names; a project renamed from the template keeps
+# its docs reading `my_project_domain` by mapping that name here.
+[extern]

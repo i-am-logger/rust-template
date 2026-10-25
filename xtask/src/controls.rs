@@ -185,6 +185,18 @@ fn arch_cases(t: &Targets) -> Vec<Case> {
     ]
 }
 
+fn snippet_cases() -> Vec<Case> {
+    vec![Case {
+        name: "a Rust block in the docs that does not compile",
+        edits: vec![Edit::Write(
+            "docs/planted-snippet.md".into(),
+            "```rust\nlet n: u32 = \"not a number\";\n```\n".into(),
+        )],
+        cmd: cmd("cargo xtask snippets"),
+        reason: "a Rust block does not compile or run".into(),
+    }]
+}
+
 fn docs_cases(t: &Targets) -> Vec<Case> {
     let dd = &t.domain.1;
     let mark = concat!("[", "[source:");
@@ -438,6 +450,7 @@ pub(crate) fn run() -> Result<ExitCode> {
         budget_cases(&t),
         arch_cases(&t),
         docs_cases(&t),
+        snippet_cases(),
         test_cases(&t),
         compile_cases(&t),
     ]
