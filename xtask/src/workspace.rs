@@ -168,6 +168,7 @@ const SKIP_DIRS: &[&str] = &[
     ".devenv",
     ".direnv",
     "node_modules",
+    "vendor",
     "fixture",
     "fixtures",
     "evals",
