@@ -161,7 +161,9 @@ impl Workspace {
 
 /// Directories no gate looks into: build output, tool state, vendored trees,
 /// test fixtures and eval cases -- data a test or an eval reads, whose paths
-/// are relative to where it is put, not the project's own documents.
+/// are relative to where it is put, not the project's own documents. A
+/// directory holding a `.git` (a worktree, a submodule, a nested clone) is
+/// another checkout, with gates of its own, and is skipped too.
 const SKIP_DIRS: &[&str] = &[
     "target",
     ".git",
@@ -182,7 +184,10 @@ pub(crate) fn files_under(dir: &Path, exts: &[&str]) -> Result<Vec<PathBuf>> {
             let path = entry?.path();
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if path.is_dir() {
-                if !SKIP_DIRS.contains(&name) && !name.starts_with(".devenv") {
+                if !SKIP_DIRS.contains(&name)
+                    && !name.starts_with(".devenv")
+                    && !path.join(".git").exists()
+                {
                     stack.push(path);
                 }
             } else if path
@@ -201,4 +206,22 @@ pub(crate) fn files_under(dir: &Path, exts: &[&str]) -> Result<Vec<PathBuf>> {
 pub(crate) fn read_toml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let text = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn another_checkout_inside_the_tree_is_not_scanned() {
+        let root = std::env::temp_dir().join(format!("xtask-files-under-{}", std::process::id()));
+        let nested = root.join(".claude/worktrees/lane");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(root.join("own.md"), "").unwrap();
+        fs::write(nested.join(".git"), "gitdir: elsewhere\n").unwrap();
+        fs::write(nested.join("theirs.md"), "").unwrap();
+        let found = files_under(&root, &["md"]);
+        fs::remove_dir_all(&root).unwrap();
+        assert_eq!(found.unwrap(), [root.join("own.md")]);
+    }
 }
