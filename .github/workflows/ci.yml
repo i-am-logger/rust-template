@@ -185,7 +185,15 @@ jobs:
     # Requires Release to have SUCCEEDED: a failed publish leaves no new tag,
     # which would re-trigger the same redundant-PR loop. On an ordinary feature
     # merge Release succeeds as a no-op, so this never blocks the first PR.
+    #
+    # Off until the repository variable RELEASE_PR is 'true'. Opening a PR
+    # with the workflow token needs the owner's repository setting "Allow
+    # GitHub Actions to create and approve pull requests" (Settings > Actions >
+    # General). Without it release-plz pushes its branch, then fails with a
+    # 403 on the PR, leaving master red and a stray release-plz-* branch on
+    # every push. Turn the setting on first, then set the variable.
     if: |
+      vars.RELEASE_PR == 'true' &&
       !cancelled() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/master' &&
