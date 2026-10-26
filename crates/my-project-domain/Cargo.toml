@@ -1,0 +1,25 @@
+[package]
+name = "my-project-domain"
+description = "The type system: every quantity is a type (role: domain)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# Pillar 5: no_std. `alloc` exists for hosts that have one; it is never on by
+# default, and `test:bare` builds with it off.
+default = []
+alloc = []
+
+[dependencies]
+zerocopy.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+trybuild.workspace = true
+
+[lints]
+workspace = true

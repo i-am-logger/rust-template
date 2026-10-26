@@ -1,0 +1,11 @@
+# cargo-mutants (pillar T: mutation testing is the strength gate; line
+# coverage is informational only). A mutant that survives is a change to the
+# code that no test notices.
+
+# Test every mutant with the whole workspace: a domain mutant is often caught
+# only by the core's properties, and testing the domain alone reports it as
+# missed.
+test_workspace = true
+test_tool = "nextest"
+# Which crates are mutated is chosen by role, in devenv.nix (qa:mutants,
+# test:mutants-diff): domain and core, from layers.toml.

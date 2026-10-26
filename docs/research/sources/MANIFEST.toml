@@ -1,0 +1,16 @@
+# Every source a research note or a code comment cites, pinned by sha256.
+# `cargo xtask sources` re-hashes each retrieved file, fails on any file here
+# that no entry names, and fails on any `[[source: key]]` that names no entry
+# or a gated one.
+#
+# [sources.<key>]
+# title = "..."
+# url = "..."
+# status = "retrieved" | "external" | "gated"
+#   retrieved: committed here as `file`, re-hashed on every run
+#   external:  read and hashed, not committed (licence or size)
+#   gated:     never obtained (paywalled, withdrawn); not citable
+# file = "..."            # retrieved only, relative to this directory
+# sha256 = "..."          # of the bytes read; not for gated
+#
+# Cite with a clause or page alongside: [[source: <key>]] section 3.2.

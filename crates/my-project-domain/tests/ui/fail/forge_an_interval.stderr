@@ -1,0 +1,15 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/ui/fail/forge_an_interval.rs:4:22
+  |
+4 |     let _: Elapsed = Elapsed(5);
+  |                      ^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/quantity.rs
+  |
+  | pub struct Elapsed(pub(crate) u64);
+  |                    ^^^^^^^^^^^^^^ private field
+help: you might have meant to use the `threshold_ms` associated function
+  |
+4 |     let _: Elapsed = Elapsed::threshold_ms(5);
+  |                             ++++++++++++++

@@ -1,0 +1,30 @@
+# Counted constructs, per crate. `cargo xtask budgets` fails when a count is
+# over its budget (something was added) and when it is under (a budget above
+# the count measures nothing). Lower a budget in the same commit that lowers
+# the count; raise one only in a commit of its own that says why.
+# `cargo xtask budgets --print` shows the current counts.
+#
+# Domain and core are held on every kind; every other crate on casts,
+# suppressions and unsafe code. A kind left out of a table has budget 0.
+
+# Pillar 1: the only public functions whose signatures may carry a raw
+# primitive -- the named ways an integer enters or leaves the type system.
+# Each use is counted as `seam`, so a new one is a reviewed change.
+[seams]
+names = ["get", "of", "from_host", "threshold_ms"]
+
+# Bytes of CLAUDE.md, which every agent session loads whole: it may only
+# shrink, and is lowered with it.
+[docs]
+claude_md_bytes = 2040
+
+[crates.my-project-domain]
+seam = 8
+# BytePos::saturating_advance (usize -> u64) and the class table's index.
+as_cast = 2
+
+[crates.my-project-core]
+
+[crates.my-project]
+
+[crates.xtask]

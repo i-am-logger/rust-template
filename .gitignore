@@ -1,5 +1,9 @@
 # Rust/Cargo
 target/
+
+# cargo-mutants' output (test:mutants-diff, qa:mutants): a run's record, not
+# source.
+mutants.out*/
 # Cargo.lock IS committed. This template produces a binary; for a library,
 # delete it and add `Cargo.lock` here instead.
 

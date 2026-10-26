@@ -1,0 +1,50 @@
+# Pillar 3: every crate has a role, and a role says what it may depend on.
+# `cargo xtask layers` checks every normal and build dependency edge against
+# this file; `cargo xtask arch` checks what each role must be. Dev
+# dependencies are not checked: a test may use what the code may not.
+#
+#   domain     the type system          no_std, no I/O, no primitives in its API
+#   core       the machine              no_std, sans-IO, depends on domain only
+#   adapter    I/O, platform, GPU       turns the outside world into events
+#   bin        a binary                 wires adapters to the core
+#   tool       build and gate tooling   never a dependency of shipped code
+#   harness    benchmarks, difftests    may use any crate; nothing ships using it
+#   quarantine the only home of unsafe  a declared leaf exposing safe wrappers
+#              (pillar 6); add one only by adding it here
+
+[crates]
+my-project-domain = "domain"
+my-project-core = "core"
+my-project = "bin"
+xtask = "tool"
+
+[roles.domain]
+may_depend_on = []
+# Derive-only, no default features: costs no std and no unsafe in our code.
+external = ["zerocopy"]
+
+[roles.core]
+# A quarantine crate's safe wrappers (SIMD backends, say) are how a core
+# reaches what it may not write itself.
+may_depend_on = ["domain", "quarantine"]
+external = []
+
+[roles.adapter]
+may_depend_on = ["domain", "core", "adapter", "quarantine"]
+external = ["*"]
+
+[roles.bin]
+may_depend_on = ["domain", "core", "adapter", "quarantine"]
+external = ["*"]
+
+[roles.quarantine]
+may_depend_on = ["domain", "quarantine"]
+external = ["*"]
+
+[roles.tool]
+may_depend_on = []
+external = ["*"]
+
+[roles.harness]
+may_depend_on = ["domain", "core", "adapter", "bin", "quarantine", "harness"]
+external = ["*"]

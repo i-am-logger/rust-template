@@ -1,0 +1,8 @@
+error[E0599]: no method named `push` found for struct `my_project_domain::Line<my_project_domain::Complete>` in the current scope
+ --> tests/ui/fail/push_after_complete.rs:5:18
+  |
+5 |     let _ = line.push(ByteClass::Other);
+  |                  ^^^^ method not found in `my_project_domain::Line<my_project_domain::Complete>`
+  |
+  = note: the method was found for
+          - `my_project_domain::Line<Building>`

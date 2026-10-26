@@ -1,0 +1,5 @@
+# `cargo xtask <gate>` runs the workspace's own gate binary (xtask/), the
+# cargo-xtask convention: the gates are Rust, built by the same toolchain, with
+# no script interpreter to install.
+[alias]
+xtask = "run --quiet --package xtask --"

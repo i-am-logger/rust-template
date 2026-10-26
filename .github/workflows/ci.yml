@@ -26,8 +26,16 @@ permissions:
 # the newest tag, which the release job creates.
 jobs:
   devenv-checks:
-    name: Lint/UT
-    runs-on: ubuntu-latest
+    name: Lint/UT (${{ matrix.os }})
+    # Linux only by default: macOS runners spend private-repo minutes at ten
+    # times the Linux rate. A project with a test that only macOS can run
+    # adds macos-latest here, so the test runs there instead of skipping
+    # itself into a pass on Linux.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     # Cold, this builds the whole dev shell. 30 is not enough for that.
     timeout-minutes: 45
     env:
@@ -47,6 +55,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # test:mutants-diff mutates the lines changed since the merge base
+          # with the default branch; a shallow clone has no merge base.
+          fetch-depth: 0
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22

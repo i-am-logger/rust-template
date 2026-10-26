@@ -1,0 +1,41 @@
+# Workspace-wide clippy configuration. Clippy reads the clippy.toml nearest a
+# crate's manifest, so domain and core carry their own copy that adds the
+# sans-IO bans; `cargo xtask arch` checks those copies keep everything here.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+too-many-lines-threshold = 80
+
+# Pillar 4: own, don't leak. Each of these hands memory to nobody; the fix is
+# an owner (a value, a `self_cell`, an RAII guard), never a `'static` borrow.
+#
+# Each is listed under the crate that defines it (`alloc::`, `core::`) as well
+# as under `std::`: in a no_std crate a `std::` path names nothing, and clippy
+# then bans nothing, silently. The planted-violation check found exactly that.
+disallowed-methods = [
+  { path = "std::boxed::Box::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "std::vec::Vec::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "std::string::String::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "alloc::boxed::Box::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "alloc::vec::Vec::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "alloc::string::String::leak", reason = "pillar 4: own, don't leak -- hold the value in an owner" },
+  { path = "std::mem::forget", reason = "pillar 4: own, don't leak -- use an RAII guard" },
+  { path = "std::mem::ManuallyDrop::new", reason = "pillar 4: own, don't leak -- use an RAII guard" },
+  { path = "core::mem::forget", reason = "pillar 4: own, don't leak -- use an RAII guard" },
+  { path = "core::mem::ManuallyDrop::new", reason = "pillar 4: own, don't leak -- use an RAII guard" },
+  # Sans-IO (pillar 2): no thread, no ambient randomness. `rand` is not in the
+  # graph, so its paths are marked allow-invalid: they cost nothing until
+  # someone adds the crate, which is exactly when they must fire.
+  { path = "std::thread::spawn", reason = "pillar 2: the core does not spawn; the host owns threads" },
+  { path = "rand::random", reason = "pillar 2: randomness enters as an event (a seed or a draw)", allow-invalid = true },
+  { path = "rand::thread_rng", reason = "pillar 2: randomness enters as an event (a seed or a draw)", allow-invalid = true },
+]
+
+# Domain and core are sans-IO (pillar 2): time and randomness arrive as
+# events, so the clock and the RNG are unreachable from here. no_std already
+# removes fs, net, threads and process; these catch an `alloc`/`std` slip.
+disallowed-types = [
+  { path = "std::time::Instant", reason = "pillar 2: time enters as an event" },
+  { path = "std::time::SystemTime", reason = "pillar 2: time enters as an event" },
+  { path = "std::thread::Thread", reason = "pillar 2: the core does not spawn" },
+]
