@@ -1,10 +1,10 @@
 {
   "extraKnownMarketplaces": {
-    "rust-code": {
-      "source": { "source": "github", "repo": "i-am-logger/rust-code" }
+    "rust-pillars": {
+      "source": { "source": "github", "repo": "i-am-logger/rust-pillars" }
     }
   },
   "enabledPlugins": {
-    "rust-code@rust-code": true
+    "rust-pillars@rust-pillars": true
   }
 }

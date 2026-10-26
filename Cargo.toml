@@ -22,7 +22,7 @@ repository = "https://github.com/i-am-logger/my-project"
 # [package] of its own to read a name from.
 [workspace.metadata.project]
 name = "my-project"
-description = "A Rust project built on the rust-code pillars"
+description = "A Rust project built on six enforced pillars"
 
 [workspace.dependencies]
 my-project-domain = { path = "crates/my-project-domain", version = "0.1.0" }

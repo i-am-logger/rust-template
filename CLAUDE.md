@@ -5,7 +5,7 @@ numbers in `MEASUREMENTS.md`, decisions in `docs/decisions.md`; this file is
 loaded into every session whole, so it holds rules only and has a byte budget
 (`budgets.toml`, checked by `cargo xtask docs`).
 
-The rust-code plugin's skills carry the reasoning: `rust-domain`,
+The rust-pillars plugin skills hold the reasoning: `rust-domain`,
 `rust-architecture`, `rust-idioms`, `rust-research`, `rust-measure`, `rust-qa`.
 
 ## The pillars are gates
