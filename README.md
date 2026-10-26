@@ -1,3 +1,5 @@
+<div align="center">
+
 # my-project
 
 [![crates.io](https://img.shields.io/crates/v/my-project?logo=rust&logoColor=white)](https://crates.io/crates/my-project)
@@ -6,11 +8,12 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/i-am-logger/my-project/ci.yml?branch=master&label=CI&logo=githubactions&logoColor=white)](https://github.com/i-am-logger/my-project/actions/workflows/ci.yml)
 [![docs.rs](https://img.shields.io/docsrs/my-project?logo=docsdotrs&logoColor=white)](https://docs.rs/my-project)
 [![codecov](https://codecov.io/gh/i-am-logger/my-project/branch/master/graph/badge.svg)](https://codecov.io/gh/i-am-logger/my-project)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/i-am-logger/my-project/badge)](https://scorecard.dev/viewer/?uri=github.com/i-am-logger/my-project)
 
 [![Nix](https://img.shields.io/badge/Nix-2b2b2b?logo=nixos&logoColor=white)](https://nixos.org)
 [![devenv](https://img.shields.io/badge/devenv-2b2b2b?logo=nixos&logoColor=white)](https://devenv.sh)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/CC%20BY--NC--SA%204.0-2b2b2b?logo=creativecommons&logoColor=white)](LICENSE)
+
+</div>
 
 > A Rust workspace built on the rust-code pillars: a domain type system, an
 > event-driven core, enforced layering, zero-copy, `no_std` and no `unsafe` --
